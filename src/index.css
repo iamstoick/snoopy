@@ -1,3 +1,6 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,7 +16,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
+    --primary: 210 100% 50%;
     --primary-foreground: 210 40% 98%;
 
     --secondary: 210 40% 96.1%;
@@ -32,22 +35,15 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
 
-    --radius: 0.5rem;
+    --radius: 0.8rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -61,8 +57,8 @@
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 210 100% 50%;
+    --primary-foreground: 210 40% 98%;
 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -97,5 +93,37 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
+}
+
+.glass-morph {
+  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-lg;
+}
+
+.scale-in-center {
+  animation: scale-in-center 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+}
+
+@keyframes scale-in-center {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.fade-in {
+  animation: fade-in 0.6s ease-out forwards;
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.slide-up {
+  animation: slide-up 0.5s ease-out forwards;
+}
+
+@keyframes slide-up {
+  0% { transform: translateY(20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
 }
