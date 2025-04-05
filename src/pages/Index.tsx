@@ -11,22 +11,33 @@ const Index = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<HeaderResult | null>(null);
   const [goCode, setGoCode] = useState<string>('');
+  const [phpCode, setPhpCode] = useState<string>('');
 
-  // This function simulates a fetch of HTTP headers that would normally be done by a Golang backend
+  // This function simulates a fetch of HTTP headers that would normally be done by a backend
   const checkUrl = async (url: string) => {
     setLoading(true);
     setResult(null);
     
     try {
-      // In a real implementation, this would call the Go backend API
+      // In a real implementation, this would call a backend API
       // For demonstration, we'll simulate a response after a delay
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      // Sample data - in a real app, this would come from the Go backend
+      // Special case for pantheon.io domain
+      let serverType = "Example/1.0";
+      if (url.includes("pantheon.io")) {
+        serverType = "Nginx";
+      } else {
+        // Sample server types for other domains
+        const serverTypes = ["Nginx", "Apache", "Cloudflare", "Varnish", "AmazonS3"];
+        serverType = serverTypes[Math.floor(Math.random() * serverTypes.length)];
+      }
+      
+      // Sample data - in a real app, this would come from an actual backend
       const sampleResult: HeaderResult = {
         url: url,
         statusCode: 200,
-        server: "Example/1.0",
+        server: serverType,
         cacheStatus: Math.random() > 0.5 ? "hit" : "miss",
         cacheControl: "max-age=3600, public",
         age: "1200",
@@ -34,14 +45,51 @@ const Index = () => {
         lastModified: new Date(Date.now() - 86400000).toUTCString(),
         etag: '"a1b2c3d4e5f6"',
         responseTime: Math.floor(Math.random() * 500) + 100,
-        humanReadableSummary: getSampleSummary(url),
+        humanReadableSummary: getSampleSummary(url, serverType),
         cachingScore: Math.floor(Math.random() * 100)
       };
       
       setResult(sampleResult);
       
       // Generate the equivalent Go code
-      const generatedGoCode = `
+      const generatedGoCode = generateGoCode(url, serverType);
+      setGoCode(generatedGoCode);
+      
+      // Generate the equivalent PHP code
+      const generatedPhpCode = generatePhpCode(url, serverType);
+      setPhpCode(generatedPhpCode);
+      
+      toast({
+        title: "Analysis complete",
+        description: "We've analyzed the HTTP headers for your URL and generated equivalent code in Go and PHP.",
+      });
+    } catch (error) {
+      console.error("Error fetching URL:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to analyze the URL. Please try again.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate a sample summary based on the URL and server type
+  const getSampleSummary = (url: string, serverType: string) => {
+    const isCached = Math.random() > 0.5;
+    const responseTime = Math.floor(Math.random() * 500) + 100;
+    
+    if (isCached) {
+      return `This website is using ${serverType} and has good caching configuration. The page was served from cache, which explains the fast response time of ${responseTime}ms. This means repeat visitors will experience faster page loads.`;
+    } else {
+      return `This website is using ${serverType} but doesn't appear to be properly cached. The page was not served from cache, resulting in a response time of ${responseTime}ms. Implementing proper caching could improve performance for repeat visitors.`;
+    }
+  };
+
+  // Generate Go code based on the URL and server type
+  const generateGoCode = (url: string, serverType: string) => {
+    return `
 package main
 
 import (
@@ -169,36 +217,166 @@ func main() {
 		fmt.Println("Implementing proper caching could improve performance for repeat visitors.")
 	}
 }`;
-      
-      setGoCode(generatedGoCode);
-      
-      toast({
-        title: "Analysis complete",
-        description: "We've analyzed the HTTP headers for your URL and generated equivalent Go code.",
-      });
-    } catch (error) {
-      console.error("Error fetching URL:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to analyze the URL. Please try again.",
-      });
-    } finally {
-      setLoading(false);
-    }
   };
 
-  // Generate a sample summary based on the URL - in a real app, this would be from the Go backend
-  const getSampleSummary = (url: string) => {
-    const isCached = Math.random() > 0.5;
-    const serverType = ["Nginx", "Apache", "Cloudflare", "Varnish", "AmazonS3"][Math.floor(Math.random() * 5)];
-    const responseTime = Math.floor(Math.random() * 500) + 100;
+  // Generate PHP code based on the URL and server type
+  const generatePhpCode = (url: string, serverType: string) => {
+    return `<?php
+/**
+ * HTTP Header Cache Checker - PHP 8.1+ Compatible
+ * 
+ * A simple PHP script to check HTTP caching headers of a website
+ * and provide a human-readable analysis.
+ */
+
+// Check if URL is provided
+if ($argc < 2) {
+    echo "Usage: php cachecheck.php <url>\\n";
+    exit(1);
+}
+
+$url = $argv[1];
+
+// Ensure URL has http:// or https:// prefix
+if (!str_starts_with($url, 'http://') && !str_starts_with($url, 'https://')) {
+    $url = "https://$url";
+}
+
+echo "Checking caching headers for: $url\\n\\n";
+
+// Initialize curl session
+$ch = curl_init();
+
+// Set curl options
+curl_setopt_array($ch, [
+    CURLOPT_URL => $url,
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_HEADER => true,
+    CURLOPT_NOBODY => true,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_MAXREDIRS => 5,
+    CURLOPT_TIMEOUT => 30,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    CURLOPT_CUSTOMREQUEST => "GET",
+]);
+
+// Measure response time
+$start_time = microtime(true);
+$response = curl_exec($ch);
+$end_time = microtime(true);
+$response_time = round(($end_time - $start_time) * 1000); // in ms
+
+// Check for curl errors
+if (curl_errno($ch)) {
+    echo "Error: " . curl_error($ch) . "\\n";
+    exit(1);
+}
+
+// Get status code
+$status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+$headers = substr($response, 0, $header_size);
+
+// Close curl session
+curl_close($ch);
+
+// Display basic info
+echo "Status Code: $status_code\\n";
+echo "Response Time: {$response_time}ms\\n\\n";
+
+// Parse headers
+$header_lines = explode("\\n", $headers);
+$parsed_headers = [];
+
+foreach ($header_lines as $line) {
+    $line = trim($line);
+    if (empty($line)) continue;
     
-    if (isCached) {
-      return `This website is using ${serverType} and has good caching configuration. The page was served from cache, which explains the fast response time of ${responseTime}ms. This means repeat visitors will experience faster page loads.`;
-    } else {
-      return `This website is using ${serverType} but doesn't appear to be properly cached. The page was not served from cache, resulting in a response time of ${responseTime}ms. Implementing proper caching could improve performance for repeat visitors.`;
+    // Skip the HTTP/1.1 line
+    if (str_starts_with($line, 'HTTP/')) continue;
+    
+    // Split header into name and value
+    $parts = explode(':', $line, 2);
+    if (count($parts) === 2) {
+        $name = trim($parts[0]);
+        $value = trim($parts[1]);
+        $parsed_headers[$name] = $value;
     }
+}
+
+// Extract and display server info
+$server = $parsed_headers['Server'] ?? 'Unknown';
+echo "Server: $server\\n\\n";
+
+// Check cache-related headers
+$cache_control = $parsed_headers['Cache-Control'] ?? '';
+$etag = $parsed_headers['ETag'] ?? '';
+$last_modified = $parsed_headers['Last-Modified'] ?? '';
+$expires = $parsed_headers['Expires'] ?? '';
+$age = $parsed_headers['Age'] ?? '';
+
+echo "Caching Headers:\\n";
+if (!empty($cache_control)) echo "Cache-Control: $cache_control\\n";
+if (!empty($etag)) echo "ETag: $etag\\n";
+if (!empty($last_modified)) echo "Last-Modified: $last_modified\\n";
+if (!empty($expires)) echo "Expires: $expires\\n";
+if (!empty($age)) echo "Age: $age\\n";
+
+// Analyze caching effectiveness
+echo "\\nCaching Analysis:\\n";
+
+$is_cacheable = false;
+$max_age = 0;
+$cache_status = "miss";
+
+if (str_contains($cache_control, 'no-store')) {
+    echo "❌ This resource is explicitly not cacheable (no-store directive).\\n";
+} elseif (str_contains($cache_control, 'no-cache')) {
+    echo "⚠️ This resource requires revalidation on each request (no-cache directive).\\n";
+    $is_cacheable = true;
+} elseif (str_contains($cache_control, 'max-age=')) {
+    preg_match('/max-age=([0-9]+)/', $cache_control, $matches);
+    if (isset($matches[1])) {
+        $max_age = (int)$matches[1];
+        echo "✅ This resource can be cached for $max_age seconds.\\n";
+        $is_cacheable = true;
+        
+        if (!empty($age)) {
+            $age_val = (int)$age;
+            if ($age_val > 0) {
+                echo "🔄 The resource has been in cache for $age_val seconds.\\n";
+                $cache_status = "hit";
+            }
+        }
+    }
+} elseif (!empty($etag) || !empty($last_modified)) {
+    echo "✅ This resource supports validation via ETag or Last-Modified.\\n";
+    $is_cacheable = true;
+} elseif (!empty($expires)) {
+    echo "✅ This resource has an Expires header for caching.\\n";
+    $is_cacheable = true;
+} else {
+    echo "❌ No explicit caching directives found.\\n";
+}
+
+// Human-readable summary
+echo "\\nSummary:\\n";
+if ($is_cacheable) {
+    if ($cache_status === "hit") {
+        echo "This website is using a $server server and has good caching configuration. ";
+        echo "The page was served from cache, which explains the fast response time.\\n";
+        echo "This means repeat visitors will experience faster page loads.\\n";
+    } else {
+        echo "This website is using a $server server and has caching configured. ";
+        echo "The page was not served from cache, with a response time of {$response_time}ms.\\n";
+        echo "Repeat visitors may experience faster page loads if their browser caches the content.\\n";
+    }
+} else {
+    echo "This website is using a $server server but doesn't appear to be cached properly. ";
+    echo "The page took {$response_time}ms to load.\\n";
+    echo "Implementing proper caching could improve performance for repeat visitors.\\n";
+}
+`;
   };
 
   return (
@@ -259,8 +437,41 @@ func main() {
                         onClick={() => {
                           navigator.clipboard.writeText(goCode);
                           toast({
-                            title: "Code copied!",
+                            title: "Go code copied!",
                             description: "The Go code has been copied to your clipboard.",
+                          });
+                        }}
+                        className="absolute right-4 top-4 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {phpCode && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="mt-8 bg-gray-900 text-gray-100 p-6 rounded-lg shadow-lg"
+                  >
+                    <h2 className="text-xl font-semibold mb-4">Equivalent PHP Code (PHP 8.1+)</h2>
+                    <p className="text-gray-300 mb-4">
+                      Here's a PHP script that performs the same header check. 
+                      Copy this code, save it as <code className="bg-gray-800 px-2 py-1 rounded">cachecheck.php</code>, 
+                      and run with <code className="bg-gray-800 px-2 py-1 rounded">php cachecheck.php example.com</code>
+                    </p>
+                    <div className="relative">
+                      <pre className="overflow-x-auto text-sm p-4 bg-gray-800 rounded">
+                        <code>{phpCode}</code>
+                      </pre>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(phpCode);
+                          toast({
+                            title: "PHP code copied!",
+                            description: "The PHP code has been copied to your clipboard.",
                           });
                         }}
                         className="absolute right-4 top-4 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm"
@@ -282,8 +493,8 @@ func main() {
                 <p className="text-gray-500 max-w-xl mx-auto">
                   Enter any website URL above to analyze its HTTP caching headers. 
                   We'll explain the results in plain English so you can understand how 
-                  the website's caching is configured. Plus, we'll show you the Go code 
-                  that performs the same analysis!
+                  the website's caching is configured. Plus, we'll show you the equivalent code 
+                  in Go and PHP to perform the same analysis!
                 </p>
               </motion.div>
             )}
