@@ -13,6 +13,95 @@ const Index = () => {
   const [goCode, setGoCode] = useState<string>('');
   const [phpCode, setPhpCode] = useState<string>('');
 
+  // Calculate caching score based on HTTP headers
+  const calculateCachingScore = (
+    cacheControl: string, 
+    etag: string, 
+    lastModified: string, 
+    expires: string,
+    cacheStatus: string,
+    age: string
+  ): number => {
+    let score = 0;
+    
+    // Check if cache-control is present (max 40 points)
+    if (cacheControl) {
+      score += 10; // Basic points for having cache-control
+      
+      // Check for public directive
+      if (cacheControl.includes('public')) {
+        score += 5;
+      }
+      
+      // Check for max-age directive
+      if (cacheControl.includes('max-age=')) {
+        score += 10;
+        
+        // Extract max-age value
+        const maxAgeMatch = cacheControl.match(/max-age=(\d+)/);
+        if (maxAgeMatch && maxAgeMatch[1]) {
+          const maxAge = parseInt(maxAgeMatch[1], 10);
+          
+          // Higher max-age values get more points (up to 15 additional points)
+          if (maxAge > 86400) { // > 1 day
+            score += 15;
+          } else if (maxAge > 3600) { // > 1 hour
+            score += 10;
+          } else if (maxAge > 60) { // > 1 minute
+            score += 5;
+          }
+        }
+      }
+    }
+    
+    // Check for validation mechanisms (max 20 points)
+    if (etag) {
+      score += 10; // Points for ETag
+    }
+    
+    if (lastModified) {
+      score += 10; // Points for Last-Modified
+    }
+    
+    // Check for Expires header (max 10 points)
+    if (expires) {
+      score += 5;
+      
+      // Check if expires is in the future
+      try {
+        const expiresDate = new Date(expires);
+        if (expiresDate > new Date()) {
+          score += 5;
+        }
+      } catch (e) {
+        // Invalid date format, no additional points
+      }
+    }
+    
+    // Check for Age header (max 10 points)
+    if (age) {
+      score += 5;
+      
+      // If age is present and greater than 0, the resource was cached
+      try {
+        const ageValue = parseInt(age, 10);
+        if (ageValue > 0) {
+          score += 5;
+        }
+      } catch (e) {
+        // Invalid age format, no additional points
+      }
+    }
+    
+    // Cache hit status gives bonus points (max 20 points)
+    if (cacheStatus.includes('hit')) {
+      score += 20;
+    }
+    
+    // Cap score at 100
+    return Math.min(score, 100);
+  };
+
   // This function simulates a fetch of HTTP headers that would normally be done by a backend
   const checkUrl = async (url: string) => {
     setLoading(true);
@@ -33,20 +122,39 @@ const Index = () => {
         serverType = serverTypes[Math.floor(Math.random() * serverTypes.length)];
       }
       
-      // Sample data - in a real app, this would come from an actual backend
+      // Generate sample HTTP headers based on common patterns
+      const cacheControl = Math.random() > 0.3 ? "max-age=3600, public" : "no-store";
+      const cacheStatus = Math.random() > 0.5 ? "hit" : "miss";
+      const age = cacheStatus === "hit" ? String(Math.floor(Math.random() * 1800)) : "0";
+      const expires = new Date(Date.now() + 3600000).toUTCString();
+      const lastModified = new Date(Date.now() - 86400000).toUTCString();
+      const etag = '"' + Math.random().toString(36).substring(2, 10) + '"';
+      const responseTime = Math.floor(Math.random() * 500) + 100;
+      
+      // Calculate actual caching score based on the headers
+      const cachingScore = calculateCachingScore(
+        cacheControl,
+        etag,
+        lastModified,
+        expires,
+        cacheStatus,
+        age
+      );
+      
+      // Create the result object
       const sampleResult: HeaderResult = {
         url: url,
         statusCode: 200,
         server: serverType,
-        cacheStatus: Math.random() > 0.5 ? "hit" : "miss",
-        cacheControl: "max-age=3600, public",
-        age: "1200",
-        expires: new Date(Date.now() + 3600000).toUTCString(),
-        lastModified: new Date(Date.now() - 86400000).toUTCString(),
-        etag: '"a1b2c3d4e5f6"',
-        responseTime: Math.floor(Math.random() * 500) + 100,
-        humanReadableSummary: getSampleSummary(url, serverType),
-        cachingScore: Math.floor(Math.random() * 100)
+        cacheStatus,
+        cacheControl,
+        age,
+        expires,
+        lastModified,
+        etag,
+        responseTime,
+        humanReadableSummary: getSampleSummary(url, serverType, cachingScore, responseTime, cacheStatus),
+        cachingScore
       };
       
       setResult(sampleResult);
@@ -75,15 +183,24 @@ const Index = () => {
     }
   };
 
-  // Generate a sample summary based on the URL and server type
-  const getSampleSummary = (url: string, serverType: string) => {
-    const isCached = Math.random() > 0.5;
-    const responseTime = Math.floor(Math.random() * 500) + 100;
-    
-    if (isCached) {
-      return `This website is using ${serverType} and has good caching configuration. The page was served from cache, which explains the fast response time of ${responseTime}ms. This means repeat visitors will experience faster page loads.`;
+  // Generate a sample summary based on the score and other details
+  const getSampleSummary = (url: string, serverType: string, score: number, responseTime: number, cacheStatus: string) => {
+    if (score >= 80) {
+      return `This website is using ${serverType} and has excellent caching configuration. ${
+        cacheStatus.includes('hit') 
+          ? `The page was served from cache, resulting in a fast response time of ${responseTime}ms.` 
+          : `The page has proper cache headers, allowing browsers to store content locally.`
+      } Repeat visitors will experience faster page loads and reduced server load.`;
+    } else if (score >= 50) {
+      return `This website is using ${serverType} and has decent caching configuration. ${
+        cacheStatus.includes('hit')
+          ? `The page was served from cache with a response time of ${responseTime}ms.`
+          : `The page has some cache headers but could be optimized further.`
+      } There's room for improvement to enhance user experience for repeat visitors.`;
     } else {
-      return `This website is using ${serverType} but doesn't appear to be properly cached. The page was not served from cache, resulting in a response time of ${responseTime}ms. Implementing proper caching could improve performance for repeat visitors.`;
+      return `This website is using ${serverType} but has poor or missing caching configuration. ${
+        `The page took ${responseTime}ms to load and wasn't properly cached.`
+      } Implementing proper caching would significantly improve performance for repeat visitors and reduce server load.`;
     }
   };
 
