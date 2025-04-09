@@ -1,7 +1,5 @@
 # HTTP Headers Checker for Pantheon Sites
 
-## Project info
-
 CacheChecker is a web browser tool that inspect HTTP response headers. This tool is designed specifically for sites on [Pantheon](https://pantheon.io) webops platform.
 
 ** How to use this tool?**
