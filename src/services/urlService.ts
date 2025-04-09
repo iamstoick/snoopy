@@ -30,6 +30,11 @@ export const checkUrl = async (url: string): Promise<{
   const etag = '"' + Math.random().toString(36).substring(2, 10) + '"';
   const responseTime = Math.floor(Math.random() * 500) + 100;
   
+  // Custom debug headers
+  const fastlyDebug = url.includes("fastly.com") ? "HIT" : "Debug information from Fastly";
+  const pantheonDebug = url.includes("pantheon.io") ? 
+    "Debug information from Pantheon" : "Not available for non-Pantheon sites";
+  
   // Calculate actual caching score based on the headers
   const cachingScore = calculateCachingScore(
     cacheControl,
@@ -53,7 +58,9 @@ export const checkUrl = async (url: string): Promise<{
     etag,
     responseTime,
     humanReadableSummary: generateSummary(url, serverType, cachingScore, responseTime, cacheStatus),
-    cachingScore
+    cachingScore,
+    fastlyDebug,
+    pantheonDebug
   };
   
   // Import these at runtime to avoid circular dependencies

@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
-import { ServerIcon, Database, Clock } from 'lucide-react';
+import { ServerIcon, Database, Clock, Bug } from 'lucide-react';
 
 export interface HeaderResult {
   url: string;
@@ -17,6 +17,8 @@ export interface HeaderResult {
   responseTime: number;
   humanReadableSummary: string;
   cachingScore: number;
+  fastlyDebug?: string;
+  pantheonDebug?: string;
 }
 
 interface ResultCardProps {
@@ -140,6 +142,31 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
                   ></div>
                 </div>
               </div>
+              
+              {/* Custom Debug Headers Section */}
+              {(result.fastlyDebug || result.pantheonDebug) && (
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                  <h3 className="mb-4 text-lg font-medium text-gray-900 flex items-center">
+                    <Bug className="w-5 h-5 mr-2 text-blue-500" />
+                    Debug Headers
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    {result.fastlyDebug && (
+                      <div className="p-4 rounded-lg bg-gray-50 border-l-4 border-blue-500">
+                        <p className="text-sm font-medium text-gray-500">Fastly-Debug:1</p>
+                        <p className="text-base font-medium text-gray-900">{result.fastlyDebug}</p>
+                      </div>
+                    )}
+                    
+                    {result.pantheonDebug && (
+                      <div className="p-4 rounded-lg bg-gray-50 border-l-4 border-purple-500">
+                        <p className="text-sm font-medium text-gray-500">Pantheon-Debug:1</p>
+                        <p className="text-base font-medium text-gray-900">{result.pantheonDebug}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </CardContent>
