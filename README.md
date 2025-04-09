@@ -8,10 +8,10 @@ Follow these steps:
 
 ```sh
 # Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+git clone https://github.com/iamstoick/cache-checker-gopher.git http-headers-checker
 
 # Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+cd http-headers-checker
 
 # Step 3: Run the Docker container.
 docker-compose up -d
