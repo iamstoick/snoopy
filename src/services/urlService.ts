@@ -66,8 +66,7 @@ export const checkUrl = async (url: string): Promise<{
   // Format the debug information nicely
   const fastlyDebug = url.includes("fastly.com") 
     ? Object.entries(fastlyDebugHeaders).map(([key, value]) => `${key}: ${value}`).join('\n')
-    : "Custom debug information received from Fastly after sending Fastly-Debug:1 header:\n" + 
-      Object.entries(fastlyDebugHeaders).map(([key, value]) => `${key}: ${value}`).join('\n');
+    : Object.entries(fastlyDebugHeaders).map(([key, value]) => `${key}: ${value}`).join('\n');
     
   const pantheonDebug = url.includes("pantheon.io") 
     ? Object.entries(pantheonDebugHeaders).map(([key, value]) => `${key}: ${value}`).join('\n')
