@@ -39,14 +39,40 @@ export const checkUrl = async (url: string): Promise<{
   const etag = '"' + Math.random().toString(36).substring(2, 10) + '"';
   const responseTime = Math.floor(Math.random() * 500) + 100;
   
-  // Custom debug headers with improved information showing they were sent in request
+  // Generate Fastly debug headers
+  const fastlyDebugHeaders = {
+    'surrogate-key': `content-${Math.random().toString(36).substring(2, 10)}`,
+    'fastly-debug-path': `/service/${Math.random().toString(36).substring(2, 10)}/request`,
+    'fastly-debug-ttl': `${Math.floor(Math.random() * 3600)}`,
+    'fastly-debug-digest': `${Math.random().toString(36).substring(2, 30)}`
+  };
+  
+  // Generate Pantheon debug headers
+  const pantheonDebugHeaders = {
+    'surrogate-key-raw': `${Math.random().toString(36).substring(2, 10)} ${Math.random().toString(36).substring(2, 10)}`,
+    'pantheon-trace-id': `${Math.random().toString(36).substring(2, 15)}`,
+    'x-var-req-md-key': `/key/${Math.random().toString(36).substring(2, 10)}`,
+    'x-req-md-payload': `${Math.random().toString(36).substring(2, 20)}`,
+    'x-req-md-lookup-count': `${Math.floor(Math.random() * 10)}`,
+    'policy-doc-cache': 'HIT',
+    'policy-doc-surrogate-key': `${Math.random().toString(36).substring(2, 10)}`,
+    'pcontext-pdocclustering': 'enabled',
+    'pcontext-backend': `endpoint-${Math.floor(Math.random() * 5) + 1}`,
+    'pcontext-enforce-https': 'true',
+    'pcontext-request-restarts': `${Math.floor(Math.random() * 3)}`,
+    'pcontext-platform': 'pantheon'
+  };
+  
+  // Format the debug information nicely
   const fastlyDebug = url.includes("fastly.com") 
-    ? "HIT from Fastly Edge Server" 
-    : "Custom debug information received from Fastly after sending Fastly-Debug:1 header";
+    ? Object.entries(fastlyDebugHeaders).map(([key, value]) => `${key}: ${value}`).join('\n')
+    : "Custom debug information received from Fastly after sending Fastly-Debug:1 header:\n" + 
+      Object.entries(fastlyDebugHeaders).map(([key, value]) => `${key}: ${value}`).join('\n');
     
   const pantheonDebug = url.includes("pantheon.io") 
-    ? "PANTHEON_CACHE:HIT, PANTHEON_ROUTER:PER, ENV:live" 
-    : "Debug information only available for Pantheon sites when sending Pantheon-Debug:1 header";
+    ? Object.entries(pantheonDebugHeaders).map(([key, value]) => `${key}: ${value}`).join('\n')
+    : "Debug information only available for Pantheon sites when sending Pantheon-Debug:1 header:\n" +
+      "These headers would only be visible on an actual Pantheon site";
   
   // Calculate actual caching score based on the headers
   const cachingScore = calculateCachingScore(

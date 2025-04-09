@@ -50,6 +50,15 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
     </div>
   );
 
+  // Helper to format multiline debug content
+  const formatDebugContent = (content: string) => {
+    if (!content) return null;
+    
+    return content.split('\n').map((line, index) => (
+      <p key={index} className="text-base font-medium text-gray-900 py-1">{line}</p>
+    ));
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -143,7 +152,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
                 </div>
               </div>
               
-              {/* Custom Debug Headers Section */}
+              {/* Custom Debug Headers Section with improved formatting */}
               {(result.fastlyDebug || result.pantheonDebug) && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
                   <h3 className="mb-4 text-lg font-medium text-gray-900 flex items-center">
@@ -153,15 +162,19 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
                   <div className="grid grid-cols-1 gap-4">
                     {result.fastlyDebug && (
                       <div className="p-4 rounded-lg bg-gray-50 border-l-4 border-blue-500">
-                        <p className="text-sm font-medium text-gray-500">Fastly-Debug:1</p>
-                        <p className="text-base font-medium text-gray-900">{result.fastlyDebug}</p>
+                        <p className="text-sm font-medium text-gray-500 mb-2">Fastly-Debug:1</p>
+                        <div className="space-y-1">
+                          {formatDebugContent(result.fastlyDebug)}
+                        </div>
                       </div>
                     )}
                     
                     {result.pantheonDebug && (
                       <div className="p-4 rounded-lg bg-gray-50 border-l-4 border-purple-500">
-                        <p className="text-sm font-medium text-gray-500">Pantheon-Debug:1</p>
-                        <p className="text-base font-medium text-gray-900">{result.pantheonDebug}</p>
+                        <p className="text-sm font-medium text-gray-500 mb-2">Pantheon-Debug:1</p>
+                        <div className="space-y-1">
+                          {formatDebugContent(result.pantheonDebug)}
+                        </div>
                       </div>
                     )}
                   </div>
