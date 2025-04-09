@@ -1,4 +1,4 @@
-# Welcome to your Lovable project
+# HTTP Headers Checker for Pantheon Sites
 
 ## Project info
 
