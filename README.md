@@ -16,7 +16,8 @@ cd http-headers-checker
 # Step 3: Run the Docker container.
 docker-compose up -d
 
-# Step 4: Visit the application at http://localhost:8080.
+# Step 4: Visit the application at
+http://localhost:8080
 ```
 
 ## What technologies are used for this project?
