@@ -21,49 +21,54 @@ export const checkUrl = async (url: string): Promise<{
   
   console.log(`Fetching headers for: ${url}`);
   
-  // Prepare custom headers for the request
-  const headers = new Headers({
-    'Fastly-Debug': '1',
-    'Pantheon-Debug': '1'
-  });
-  
   try {
     // Create a proxy URL to avoid CORS issues
-    const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-    const response = await fetch(proxyUrl);
-    const data = await response.json();
+    const proxyUrl = `https://cors-anywhere.herokuapp.com/${url}`;
     
-    if (!data || !data.status) {
-      throw new Error('Failed to fetch headers');
-    }
+    // Make the request to get headers
+    const response = await fetch(proxyUrl, {
+      method: 'HEAD',
+      headers: {
+        'Fastly-Debug': '1',
+        'Pantheon-Debug': '1',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
     
-    // Extract headers from the response
-    const rawHeaders = data.status.headers || {};
-    console.log('Received headers:', rawHeaders);
+    // Get headers from the response
+    const headers = response.headers;
+    const allHeaders: Record<string, string> = {};
+    
+    // Convert headers to a plain object
+    headers.forEach((value, key) => {
+      allHeaders[key.toLowerCase()] = value;
+    });
+    
+    console.log('Received headers:', allHeaders);
     
     // Real status code from response
-    const statusCode = data.status.http_code || 200;
+    const statusCode = response.status;
     
     // Extract common headers
-    const server = rawHeaders.server || rawHeaders.Server || "Unknown";
-    const cacheControl = rawHeaders["cache-control"] || rawHeaders["Cache-Control"] || "";
-    const cacheStatus = rawHeaders["x-cache"] || rawHeaders["X-Cache"] || rawHeaders["cf-cache-status"] || rawHeaders["CF-Cache-Status"] || "unknown";
-    const age = rawHeaders.age || rawHeaders.Age || "0";
-    const expires = rawHeaders.expires || rawHeaders.Expires || "";
-    const lastModified = rawHeaders["last-modified"] || rawHeaders["Last-Modified"] || "";
-    const etag = rawHeaders.etag || rawHeaders.ETag || "";
+    const server = allHeaders['server'] || "Unknown";
+    const cacheControl = allHeaders['cache-control'] || "";
+    const cacheStatus = allHeaders['x-cache'] || allHeaders['cf-cache-status'] || "unknown";
+    const age = allHeaders['age'] || "0";
+    const expires = allHeaders['expires'] || "";
+    const lastModified = allHeaders['last-modified'] || "";
+    const etag = allHeaders['etag'] || "";
     
     // Extract Fastly specific headers
-    const fastlyDebugHeaders = Object.keys(rawHeaders)
+    const fastlyDebugHeaders = Object.keys(allHeaders)
       .filter(key => 
         key.toLowerCase().includes('fastly') || 
         key.toLowerCase().includes('surrogate-key')
       )
-      .map(key => `${key}: ${rawHeaders[key]}`)
+      .map(key => `${key}: ${allHeaders[key]}`)
       .join('\n');
     
     // Extract Pantheon specific headers
-    const pantheonDebugHeaders = Object.keys(rawHeaders)
+    const pantheonDebugHeaders = Object.keys(allHeaders)
       .filter(key => 
         key.toLowerCase().includes('pantheon') || 
         key.toLowerCase().includes('x-var') || 
@@ -71,13 +76,13 @@ export const checkUrl = async (url: string): Promise<{
         key.toLowerCase().includes('policy-doc') || 
         key.toLowerCase().includes('pcontext')
       )
-      .map(key => `${key}: ${rawHeaders[key]}`)
+      .map(key => `${key}: ${allHeaders[key]}`)
       .join('\n');
     
     // Extract Cloudflare specific headers
-    const cloudflareDebugHeaders = Object.keys(rawHeaders)
+    const cloudflareDebugHeaders = Object.keys(allHeaders)
       .filter(key => key.toLowerCase().includes('cf-'))
-      .map(key => `${key}: ${rawHeaders[key]}`)
+      .map(key => `${key}: ${allHeaders[key]}`)
       .join('\n');
     
     // Calculate approximate response time (we don't have actual value)
@@ -135,12 +140,6 @@ export const checkUrl = async (url: string): Promise<{
     // Generate the curl command
     const curlCmd = generateCurlCommand(url);
     
-    // Log that we're sending custom headers
-    console.log("Using custom headers:", {
-      'Fastly-Debug': '1',
-      'Pantheon-Debug': '1'
-    });
-    
     return {
       result: result,
       goCode: generatedGoCode,
@@ -150,8 +149,127 @@ export const checkUrl = async (url: string): Promise<{
   } catch (error) {
     console.error("Error fetching headers:", error);
     
-    // If we encounter an error, still return a basic result
-    return fallbackResponse(url);
+    // Let's try an alternative approach with allorigins if cors-anywhere fails
+    try {
+      // Alternative proxy URL
+      const allOriginsUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
+      const response = await fetch(allOriginsUrl);
+      const data = await response.json();
+      
+      if (!data || !data.status) {
+        throw new Error('Failed to fetch headers');
+      }
+      
+      // Extract headers from the response
+      const rawHeaders = data.status.headers || {};
+      console.log('Received headers:', rawHeaders);
+      
+      // Real status code from response
+      const statusCode = data.status.http_code || 200;
+      
+      // Extract common headers
+      const server = rawHeaders.server || rawHeaders.Server || "Unknown";
+      const cacheControl = rawHeaders["cache-control"] || rawHeaders["Cache-Control"] || "";
+      const cacheStatus = rawHeaders["x-cache"] || rawHeaders["X-Cache"] || rawHeaders["cf-cache-status"] || rawHeaders["CF-Cache-Status"] || "unknown";
+      const age = rawHeaders.age || rawHeaders.Age || "0";
+      const expires = rawHeaders.expires || rawHeaders.Expires || "";
+      const lastModified = rawHeaders["last-modified"] || rawHeaders["Last-Modified"] || "";
+      const etag = rawHeaders.etag || rawHeaders.ETag || "";
+      
+      // Extract Fastly specific headers
+      const fastlyDebugHeaders = Object.keys(rawHeaders)
+        .filter(key => 
+          key.toLowerCase().includes('fastly') || 
+          key.toLowerCase().includes('surrogate-key')
+        )
+        .map(key => `${key}: ${rawHeaders[key]}`)
+        .join('\n');
+      
+      // Extract Pantheon specific headers
+      const pantheonDebugHeaders = Object.keys(rawHeaders)
+        .filter(key => 
+          key.toLowerCase().includes('pantheon') || 
+          key.toLowerCase().includes('x-var') || 
+          key.toLowerCase().includes('x-req') || 
+          key.toLowerCase().includes('policy-doc') || 
+          key.toLowerCase().includes('pcontext')
+        )
+        .map(key => `${key}: ${rawHeaders[key]}`)
+        .join('\n');
+      
+      // Extract Cloudflare specific headers
+      const cloudflareDebugHeaders = Object.keys(rawHeaders)
+        .filter(key => key.toLowerCase().includes('cf-'))
+        .map(key => `${key}: ${rawHeaders[key]}`)
+        .join('\n');
+      
+      // Calculate approximate response time (we don't have actual value)
+      const responseTime = Math.floor(Math.random() * 300) + 50;
+      
+      // Calculate caching score based on the headers
+      const cachingScore = calculateCachingScore(
+        cacheControl,
+        etag,
+        lastModified,
+        expires,
+        cacheStatus,
+        age
+      );
+      
+      // Generate performance suggestions
+      const performanceSuggestions = generatePerformanceSuggestions(
+        cacheControl,
+        etag,
+        lastModified,
+        server,
+        cachingScore,
+        responseTime
+      );
+      
+      // Create the result object with real header values
+      const result: HeaderResult = {
+        url: url,
+        statusCode: statusCode,
+        server: server,
+        cacheStatus: cacheStatus,
+        cacheControl: cacheControl,
+        age: age,
+        expires: expires,
+        lastModified: lastModified,
+        etag: etag,
+        responseTime: responseTime,
+        humanReadableSummary: generateSummary(url, server, cachingScore, responseTime, cacheStatus),
+        cachingScore: cachingScore,
+        fastlyDebug: fastlyDebugHeaders,
+        pantheonDebug: pantheonDebugHeaders,
+        cloudflareDebug: cloudflareDebugHeaders,
+        performanceSuggestions: performanceSuggestions
+      };
+      
+      // Import these at runtime to avoid circular dependencies
+      const { generateGoCode, generatePhpCode } = await import('@/utils/codeGenerators');
+      
+      // Generate the equivalent Go code with debug headers
+      const generatedGoCode = generateGoCode(url, server);
+      
+      // Generate the equivalent PHP code with debug headers
+      const generatedPhpCode = generatePhpCode(url, server);
+    
+      // Generate the curl command
+      const curlCmd = generateCurlCommand(url);
+      
+      return {
+        result: result,
+        goCode: generatedGoCode,
+        phpCode: generatedPhpCode,
+        curlCommand: curlCmd
+      };
+    } catch (secondError) {
+      console.error("Both header fetching methods failed:", secondError);
+      
+      // If we encounter an error in both methods, still return a basic result
+      return fallbackResponse(url);
+    }
   }
 };
 
