@@ -16,6 +16,7 @@ const Index = () => {
   const [result, setResult] = useState<HeaderResult | null>(null);
   const [goCode, setGoCode] = useState<string>('');
   const [phpCode, setPhpCode] = useState<string>('');
+  const [curlCommand, setCurlCommand] = useState<string>('');
 
   const handleUrlCheck = async (url: string) => {
     setLoading(true);
@@ -23,15 +24,16 @@ const Index = () => {
     
     try {
       // Get analysis results from the service
-      const { result: analysisResult, goCode: generatedGoCode, phpCode: generatedPhpCode } = await checkUrl(url);
+      const { result: analysisResult, goCode: generatedGoCode, phpCode: generatedPhpCode, curlCommand: generatedCurlCommand } = await checkUrl(url);
       
       setResult(analysisResult);
       setGoCode(generatedGoCode);
       setPhpCode(generatedPhpCode);
+      setCurlCommand(generatedCurlCommand);
       
       toast({
         title: "Analysis complete",
-        description: "We've analyzed the HTTP headers for your URL and generated equivalent code in Go and PHP.",
+        description: "We've analyzed the HTTP headers for your URL.",
       });
     } catch (error) {
       console.error("Error fetching URL:", error);
@@ -62,7 +64,12 @@ const Index = () => {
             {loading ? (
               <LoadingState />
             ) : result ? (
-              <ResultsDisplay result={result} goCode={goCode} phpCode={phpCode} />
+              <ResultsDisplay 
+                result={result} 
+                goCode={goCode} 
+                phpCode={phpCode} 
+                curlCommand={curlCommand} 
+              />
             ) : (
               <InstructionBlock />
             )}

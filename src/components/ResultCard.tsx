@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
-import { ServerIcon, Database, Clock, Bug } from 'lucide-react';
+import { ServerIcon, Database, Clock, Bug, Zap } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export interface HeaderResult {
   url: string;
@@ -19,6 +20,8 @@ export interface HeaderResult {
   cachingScore: number;
   fastlyDebug?: string;
   pantheonDebug?: string;
+  cloudflareDebug?: string;
+  performanceSuggestions?: string[];
 }
 
 interface ResultCardProps {
@@ -36,6 +39,14 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
     if (score >= 80) return 'text-green-600';
     if (score >= 50) return 'text-orange-500';
     return 'text-red-500';
+  };
+
+  const getStatusCodeColor = (code: number) => {
+    if (code >= 200 && code < 300) return 'bg-green-100 text-green-800';
+    if (code >= 300 && code < 400) return 'bg-blue-100 text-blue-800';
+    if (code >= 400 && code < 500) return 'bg-orange-100 text-orange-800';
+    if (code >= 500) return 'bg-red-100 text-red-800';
+    return 'bg-gray-100 text-gray-800';
   };
 
   const renderMetric = (icon: React.ReactNode, title: string, value: string | number, color?: string) => (
@@ -71,11 +82,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
           <div className="flex flex-col">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-medium text-gray-900">{result.url}</h2>
-              <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                result.statusCode >= 200 && result.statusCode < 300 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-red-100 text-red-800'
-              }`}>
+              <span className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusCodeColor(result.statusCode)}`}>
                 {result.statusCode}
               </span>
             </div>
@@ -152,8 +159,23 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
                 </div>
               </div>
               
-              {/* Custom Debug Headers Section with improved formatting */}
-              {(result.fastlyDebug || result.pantheonDebug) && (
+              {/* Performance Suggestions Section */}
+              {result.performanceSuggestions && result.performanceSuggestions.length > 0 && (
+                <div className="p-4 rounded-lg bg-yellow-50 border-l-4 border-yellow-400">
+                  <div className="flex items-center mb-2">
+                    <Zap className="w-5 h-5 mr-2 text-yellow-500" />
+                    <h4 className="text-base font-medium text-gray-900">Performance Suggestions</h4>
+                  </div>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {result.performanceSuggestions.map((suggestion, index) => (
+                      <li key={index} className="text-sm text-gray-700">{suggestion}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Debug Headers Section with improved formatting */}
+              {(result.fastlyDebug || result.pantheonDebug || result.cloudflareDebug) && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
                   <h3 className="mb-4 text-lg font-medium text-gray-900 flex items-center">
                     <Bug className="w-5 h-5 mr-2 text-blue-500" />
@@ -174,6 +196,15 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
                         <p className="text-sm font-medium text-gray-500 mb-2">Pantheon-Debug:1</p>
                         <div className="space-y-1">
                           {formatDebugContent(result.pantheonDebug)}
+                        </div>
+                      </div>
+                    )}
+
+                    {result.cloudflareDebug && (
+                      <div className="p-4 rounded-lg bg-gray-50 border-l-4 border-orange-500">
+                        <p className="text-sm font-medium text-gray-500 mb-2">Cloudflare Headers</p>
+                        <div className="space-y-1">
+                          {formatDebugContent(result.cloudflareDebug)}
                         </div>
                       </div>
                     )}
