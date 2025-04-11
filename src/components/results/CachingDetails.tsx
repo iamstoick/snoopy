@@ -1,5 +1,12 @@
 
 import React from 'react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { HelpCircle } from 'lucide-react';
 
 interface CachingDetailsProps {
   cacheControl: string;
@@ -26,38 +33,61 @@ const CachingDetails: React.FC<CachingDetailsProps> = ({
     return 'text-red-500';
   };
 
+  const renderCacheItem = (title: string, value: string, tooltip: string) => (
+    <div className="p-4 rounded-lg bg-gray-50">
+      <div className="flex items-center space-x-1">
+        <p className="text-sm font-medium text-gray-500">{title}</p>
+        <Tooltip>
+          <TooltipTrigger>
+            <HelpCircle className="h-4 w-4 text-gray-400" />
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <p>{tooltip}</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+      <p className="text-base font-medium text-gray-900">{value || "Not specified"}</p>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="p-4 rounded-lg bg-gray-50">
-          <p className="text-sm font-medium text-gray-500">Cache-Control</p>
-          <p className="text-base font-medium text-gray-900">{cacheControl || "Not specified"}</p>
-        </div>
+        {renderCacheItem(
+          "Cache-Control", 
+          cacheControl, 
+          "Directives for caching mechanisms in requests/responses. Values like 'max-age=3600' indicate content can be cached for 1 hour."
+        )}
         
-        <div className="p-4 rounded-lg bg-gray-50">
-          <p className="text-sm font-medium text-gray-500">Age</p>
-          <p className="text-base font-medium text-gray-900">{age || "Not specified"}</p>
-        </div>
+        {renderCacheItem(
+          "Age", 
+          age, 
+          "Indicates how many seconds the object has been in a proxy cache. Higher numbers mean the content has been cached longer."
+        )}
         
-        <div className="p-4 rounded-lg bg-gray-50">
-          <p className="text-sm font-medium text-gray-500">Last-Modified</p>
-          <p className="text-base font-medium text-gray-900">{lastModified || "Not specified"}</p>
-        </div>
+        {renderCacheItem(
+          "Last-Modified", 
+          lastModified, 
+          "The date and time the server believes the resource was last modified. Used for conditional requests to check if content has changed."
+        )}
         
-        <div className="p-4 rounded-lg bg-gray-50">
-          <p className="text-sm font-medium text-gray-500">ETag</p>
-          <p className="text-base font-medium text-gray-900">{etag || "Not specified"}</p>
-        </div>
+        {renderCacheItem(
+          "ETag", 
+          etag, 
+          "A unique identifier assigned to a specific version of a resource. Used for efficient cache validation without transferring the entire resource."
+        )}
 
-        <div className="p-4 rounded-lg bg-gray-50">
-          <p className="text-sm font-medium text-gray-500">X-Served-By</p>
-          <p className="text-base font-medium text-gray-900">{servedBy || "Not specified"}</p>
-        </div>
+        {renderCacheItem(
+          "X-Served-By", 
+          servedBy, 
+          "Indicates which server or cache node handled the request. Useful for debugging CDN behavior."
+        )}
         
-        <div className="p-4 rounded-lg bg-gray-50">
-          <p className="text-sm font-medium text-gray-500">X-Cache-Hits</p>
-          <p className="text-base font-medium text-gray-900">{cacheHits || "Not specified"}</p>
-        </div>
+        {renderCacheItem(
+          "X-Cache-Hits", 
+          cacheHits, 
+          "Number of times this resource was served from cache. Higher numbers indicate effective caching."
+        )}
       </div>
       
       <div className="p-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50">

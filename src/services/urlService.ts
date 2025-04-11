@@ -6,6 +6,60 @@ const generateCurlCommand = (url: string): string => {
   return `curl -I -H "Fastly-Debug: 1" -H "Pantheon-Debug: 1" "${url}"`;
 };
 
+// Get IP address information
+const getIpAddressInfo = async (domainName: string): Promise<{ ip: string, location: string } | null> => {
+  try {
+    // Extract domain from URL if needed
+    let hostname = domainName;
+    if (hostname.startsWith('http://') || hostname.startsWith('https://')) {
+      hostname = new URL(hostname).hostname;
+    }
+    
+    // Use public API to get IP address and geolocation
+    const response = await fetch(`https://ipapi.co/${hostname}/json/`);
+    const data = await response.json();
+    
+    if (data.error) {
+      console.error('IP lookup error:', data.error);
+      return null;
+    }
+    
+    return {
+      ip: data.ip || 'Unknown',
+      location: data.city && data.country_name ? 
+        `${data.city}, ${data.country_name}` : 
+        (data.country_name || 'Unknown location')
+    };
+  } catch (error) {
+    console.error('Error fetching IP info:', error);
+    return null;
+  }
+};
+
+// Detect HTTP protocol version from response headers
+const detectHttpVersion = (headers: Headers): string => {
+  // Check for HTTP/2 or HTTP/3 specific headers
+  if (headers.get('x-firefox-http3') || headers.get('x-firefox-spdy') === 'h3') {
+    return 'HTTP/3 (QUIC)';
+  } 
+  
+  if (headers.get('x-firefox-spdy') === 'h2' || headers.get('x-chrome-http2') === 'yes') {
+    return 'HTTP/2';
+  }
+  
+  // Check for Via header which might contain protocol information
+  const viaHeader = headers.get('via');
+  if (viaHeader) {
+    if (viaHeader.includes('HTTP/2')) return 'HTTP/2';
+    if (viaHeader.includes('HTTP/3')) return 'HTTP/3 (QUIC)';
+    if (viaHeader.includes('HTTP/1.1')) return 'HTTP/1.1';
+    if (viaHeader.includes('HTTP/1.0')) return 'HTTP/1.0';
+  }
+  
+  // Default to HTTP/1.1 if we can't determine
+  return 'HTTP/1.1 (presumed)';
+};
+
 // This function tries to fetch headers using a direct jsonp approach
 export const checkUrl = async (url: string): Promise<{
   result: HeaderResult;
@@ -20,8 +74,10 @@ export const checkUrl = async (url: string): Promise<{
   
   console.log(`Fetching headers for: ${url}`);
   
-  
   try {
+    // Get IP address information
+    const ipInfo = await getIpAddressInfo(url);
+    
     // Create a proxy URL to avoid CORS issues
     // Make a separate request to get the response time
     // Example usage:
@@ -32,14 +88,14 @@ export const checkUrl = async (url: string): Promise<{
     console.log('totalTime :', totalTime );*/
 
     const start = performance.now();
-    await fetch(encodeURIComponent(url));
+    const response = await fetch(encodeURIComponent(url));
     const responseTimeRaw = performance.now() - start;
     const responseTime = parseFloat(responseTimeRaw.toFixed(2));
 
     // Make a proxy request to fetch headers
     const proxyUrl = 'https://2ce35250-6caf-4679-9f7c-5f3f9b29be3f-00-2wj5812hu9b5s.sisko.replit.dev/proxy?url=' + encodeURIComponent(url);
-    const response = await fetch(proxyUrl);
-    const data: HeaderResult = await response.json();
+    const response2 = await fetch(proxyUrl);
+    const data: HeaderResult = await response2.json();
     if (data.status != 200) {
       throw new Error('Failed to fetch headers');
     }
@@ -48,7 +104,11 @@ export const checkUrl = async (url: string): Promise<{
     const responseHeaders = data.headers || {};
     console.log('Received raw headers:', responseHeaders);
 
-    
+    // Try to determine HTTP version
+    let httpVersion = 'HTTP/1.1 (presumed)';
+    if (response.headers && typeof response.headers.get === 'function') {
+      httpVersion = detectHttpVersion(response.headers);
+    }
     
     const allHeaders: Record<string, string> = {};
 
@@ -349,7 +409,8 @@ export const checkUrl = async (url: string): Promise<{
       lastModified,
       server,
       cachingScore,
-      responseTime
+      responseTime,
+      httpVersion
     );
     
     // Create the result object with simulated header values
@@ -359,6 +420,9 @@ export const checkUrl = async (url: string): Promise<{
       headers: allHeaders,
       humanReadableSummary: generateSummary(url, server, cachingScore, responseTime, cacheStatus),
       cachingScore: cachingScore,
+      httpVersion: httpVersion,
+      ipAddress: ipInfo?.ip,
+      ipLocation: ipInfo?.location,
       securityHeaders: securityHeaders,
       usefulHeaders: usefulHeaders,
       fastlyDebug: fastlyDebugHeaders,
@@ -388,6 +452,7 @@ export const checkUrl = async (url: string): Promise<{
     };
   } catch (error) {
     console.error("Error fetching headers:", error);
+    throw error;
   }
 };
 
@@ -398,7 +463,8 @@ const generatePerformanceSuggestions = (
   lastModified: string,
   serverType: string,
   cachingScore: number,
-  responseTime: number
+  responseTime: number,
+  httpVersion?: string
 ): string[] => {
   const suggestions: string[] = [];
   
@@ -424,6 +490,11 @@ const generatePerformanceSuggestions = (
     suggestions.push("Review your Cloudflare caching rules to optimize edge caching for static assets.");
   }
   
+  // HTTP protocol suggestions
+  if (httpVersion && httpVersion.includes('HTTP/1.1')) {
+    suggestions.push("Upgrade to HTTP/2 or HTTP/3 to improve connection efficiency and reduce latency.");
+  }
+  
   // Response time suggestions
   if (responseTime > 300) {
     suggestions.push("Consider implementing a CDN to reduce latency for global users.");
@@ -434,7 +505,9 @@ const generatePerformanceSuggestions = (
   }
   
   // Common suggestions for most sites
-  suggestions.push("Use HTTP/2 or HTTP/3 to improve connection efficiency and reduce latency.");
+  if (!httpVersion || !httpVersion.includes('HTTP/3')) {
+    suggestions.push("Consider implementing HTTP/3 for improved performance over unreliable networks.");
+  }
   suggestions.push("Consider implementing Brotli compression for better compression ratios than gzip.");
   suggestions.push("Implement content preloading with <link rel='preload'> for critical resources.");
   

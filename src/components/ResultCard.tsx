@@ -14,6 +14,9 @@ export interface HeaderResult {
   status: number;
   humanReadableSummary: string;
   cachingScore: number;
+  httpVersion?: string;
+  ipAddress?: string;
+  ipLocation?: string;
   securityHeaders?: string;
   usefulHeaders?: string;
   fastlyDebug?: string;
@@ -55,14 +58,19 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
             <CachingDetails
               cacheControl={result.headers['cache-control'] || ''}
               age={result.headers['age'] || ''}
-              lastModified={result.headers['lastModified'] || ''}
+              lastModified={result.headers['last-modified'] || ''}
               etag={result.headers['etag'] || ''}
               servedBy={result.headers['x-served-by'] || ''}
               cacheHits={result.headers['x-cache-hits'] || ''}
               cachingScore={result.cachingScore}
             />
             
-            <PerformanceSuggestions suggestions={result.performanceSuggestions || []} />
+            <PerformanceSuggestions 
+              suggestions={result.performanceSuggestions || []} 
+              httpVersion={result.httpVersion}
+              ipAddress={result.ipAddress}
+              ipLocation={result.ipLocation}
+            />
 
             <DebugHeaders
               fastlyDebug={result.fastlyDebug}
