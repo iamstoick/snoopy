@@ -9,7 +9,7 @@ import { toast } from "@/components/ui/use-toast";
 import LoadingState from '@/components/LoadingState';
 import InstructionBlock from '@/components/InstructionBlock';
 import ResultsDisplay from '@/components/ResultsDisplay';
-import { checkUrl } from '@/services/urlService';
+import { checkUrl, checkHttpResponseHeaders } from '@/services/urlService';
 
 const Index = () => {
   const [loading, setLoading] = useState(false);

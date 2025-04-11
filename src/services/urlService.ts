@@ -20,70 +20,150 @@ export const checkUrl = async (url: string): Promise<{
   
   console.log(`Fetching headers for: ${url}`);
   
+  
   try {
-    // Use httpstat.us API for testing header responses
-    // This is more reliable for demonstration purposes
-    const testUrl = `https://httpstat.us/200`;
-    // In a real-world scenario, we would use a backend proxy or serverless function
-    // to fetch the actual headers from the original URL
+    // Create a proxy URL to avoid CORS issues
+    const proxyUrl = 'https://2ce35250-6caf-4679-9f7c-5f3f9b29be3f-00-2wj5812hu9b5s.sisko.replit.dev/proxy?url=' + encodeURIComponent(url);
+    const start = Date.now();
+    const response = await fetch(proxyUrl);
+    const responseTime = Date.now() - start;
+    const data: HeaderResult = await response.json();
     
-    const response = await fetch(testUrl);
-    const responseHeaders = response.headers;
+    if (data.status != 200) {
+      throw new Error('Failed to fetch headers');
+    }
+    
+    // Extract headers from the response
+    const responseHeaders = data.headers || {};
+    console.log('Received raw headers:', responseHeaders);
+
     
     // Create simulated headers based on actual response and URL analysis
     // In production, you would get these from the actual URL response
     const allHeaders: Record<string, string> = {};
+
+    // Not really a header, but we can use it to simulate the server type
+    allHeaders['response-time'] = responseTime.toString() || "Unknown";
     
     // Add basic headers that would be present
-    allHeaders['content-type'] = responseHeaders.get('content-type') || 'text/html; charset=utf-8';
-    allHeaders['date'] = responseHeaders.get('date') || new Date().toUTCString();
-    allHeaders['server'] = getSimulatedServerType(url);
+    allHeaders['content-type'] = data.headers['content-type'];
+    allHeaders['date'] = data.headers['date'];
+    allHeaders['server'] = data.headers['server'];
     
     // Add cache-related headers
-    allHeaders['cache-control'] = 'max-age=3600, public';
-    allHeaders['age'] = Math.floor(Math.random() * 1200).toString();
-    allHeaders['expires'] = new Date(Date.now() + 3600000).toUTCString();
-    allHeaders['last-modified'] = new Date(Date.now() - 86400000).toUTCString();
-    allHeaders['etag'] = `"${Math.random().toString(36).substring(2, 15)}"`;
+    allHeaders['cache-control'] = data.headers['cache-control'];
+    allHeaders['age'] = data.headers['age'];
+    allHeaders['expires'] = data.headers['expires'];
+    allHeaders['last-modified'] = data.headers['last-modified'];
+    allHeaders['etag'] = data.headers['etag'];
+
+    // Drupal specific headers
+    if ('x-drupal-cache' in data.headers) { 
+      allHeaders['x-drupal-cache'] = data.headers['x-drupal-cache'];
+    }
+    if ('x-drupal-dynamic-cache' in data.headers) { 
+      allHeaders['x-drupal-dynamic-cache'] = data.headers['x-drupal-dynamic-cache'];
+    }
+    if ('x-generator' in data.headers) { 
+      allHeaders['x-generator'] = data.headers['x-generator'];
+    }
     
     // Add CDN-specific headers based on URL
-    if (url.includes('fastly') || url.includes('pantheon.io')) {
-      allHeaders['x-cache'] = Math.random() > 0.5 ? 'HIT' : 'MISS';
-      allHeaders['x-served-by'] = 'cache-pao17429-PAO';
-      allHeaders['surrogate-key'] = 'front homepage section';
-      allHeaders['x-cache-hits'] = Math.floor(Math.random() * 5).toString();
+    if ('x-cache' in data.headers) { 
+      allHeaders['x-cache'] = data.headers['x-cache'];
+    }
+    if ('x-served-by' in data.headers) { 
+      allHeaders['x-served-by'] = data.headers['x-served-by'];
+    }
+    if ('x-cache-hits' in data.headers) { 
+      allHeaders['x-cache-hits'] = data.headers['x-cache-hits'];
+    }
+
+    // Fastly debug headers
+    if ('surrogate-key' in data.headers) { 
+      allHeaders['surrogate-key'] = data.headers['surrogate-key'];
+    }
+    if ('fastly-debug-digest' in data.headers) { 
+      allHeaders['fastly-debug-digest'] = data.headers['fastly-debug-digest'];
+    }
+    if ('fastly-debug-path' in data.headers) { 
+      allHeaders['fastly-debug-path'] = data.headers['fastly-debug-path'];
+    }
+    if ('fastly-debug-ttl' in data.headers) { 
+      allHeaders['fastly-debug-ttl'] = data.headers['fastly-debug-ttl'];
+    }
       
-      // Add Fastly-specific debug headers
-      if (url.includes('fastly') || url.includes('pantheon.io')) {
-        allHeaders['fastly-debug-state'] = 'VALID, STALE';
-        allHeaders['fastly-debug-digest'] = '2c7f4efc24a5884884574dabe19e4a6a';
-        allHeaders['surrogate-control'] = 'max-age=604800';
-        allHeaders['fastly-io-info'] = 'fio=true, webp=60, resize=0x0';
-      }
-      
-      // Add Pantheon-specific debug headers
-      if (url.includes('pantheon.io')) {
-        allHeaders['x-pantheon-styx-hostname'] = 'styx-fe1-a-789f66bcd9-xv2kl';
-        allHeaders['x-styx-req-id'] = '25dd3b47-6a7e-11eb-b8af-9f7b2aa7f14c';
-        allHeaders['pantheon-req-id'] = 'styx-789f66bcd9-xv2kl-5723921';
-        allHeaders['x-drupal-cache'] = 'HIT';
-        allHeaders['x-drupal-dynamic-cache'] = 'MISS';
-      }
+    // Add Pantheon-specific debug headers
+    if ('surrogate-key-raw' in data.headers) { 
+      allHeaders['surrogate-key-raw'] = data.headers['surrogate-key-raw'];
+    }
+    if ('policy-doc-cache' in data.headers) { 
+      allHeaders['policy-doc-cache'] = data.headers['policy-doc-cache'];
+    }
+    if ('policy-doc-surrogate-key' in data.headers) { 
+      allHeaders['policy-doc-surrogate-key'] = data.headers['policy-doc-surrogate-key'];
+    }
+    if ('pcontext-pdocclustering' in data.headers) { 
+      allHeaders['pcontext-pdocclustering'] = data.headers['pcontext-pdocclustering'];
+    }
+    if ('pcontext-backend' in data.headers) { 
+      allHeaders['pcontext-pdocclustering'] = data.headers['pcontext-backend'];
+    }
+    if ('pcontext-enforce-https' in data.headers) { 
+      allHeaders['pcontext-enforce-https'] = data.headers['pcontext-enforce-https'];
+    }
+    if ('pcontext-request-restarts' in data.headers) { 
+      allHeaders['pcontext-request-restarts'] = data.headers['pcontext-request-restarts'];
+    }
+    if ('pcontext-platform' in data.headers) { 
+      allHeaders['pcontext-platform'] = data.headers['pcontext-platform'];
+    }
+    if ('pantheon-trace-id' in data.headers) { 
+      allHeaders['pantheon-trace-id'] = data.headers['pantheon-trace-id'];
     }
     
     // Add Cloudflare-specific headers
-    if (url.includes('cloudflare') || Math.random() > 0.7) {
-      allHeaders['cf-ray'] = `${Math.random().toString(36).substring(2, 10)}-EWR`;
-      allHeaders['cf-cache-status'] = Math.random() > 0.5 ? 'HIT' : 'MISS';
-      allHeaders['cf-polished'] = '2';
-      allHeaders['cf-apo-via'] = 'tcache';
-      allHeaders['cf-edge-cache'] = 'cache,platform=wordpress';
+    if ('cf-ray' in data.headers) { 
+      allHeaders['cf-ray'] = data.headers['cf-ray'];
+      allHeaders['cf-cache-status'] =data.headers['cf-ray'] || "Unknown";
+      allHeaders['cf-polished'] = data.headers['cf-polished'] || "Unknown";
+      allHeaders['cf-apo-via'] = data.headers['cf-apo-via'] || "Unknown";
+      allHeaders['cf-edge-cache'] = data.headers['cf-edge-cache'] || "Unknown";
+    }
+
+    // Other headers
+    if ('x-content-type-options' in data.headers) { 
+      allHeaders['x-content-type-options'] = data.headers['x-content-type-options'];
+    }
+    if ('strict-transport-security' in data.headers) { 
+      allHeaders['strict-transport-security'] = data.headers['strict-transport-security'];
+    }
+    if ('x-pantheon-styx-hostname' in data.headers) { 
+      allHeaders['x-pantheon-styx-hostname'] = data.headers['x-pantheon-styx-hostname'];
+    }
+    if ('x-frame-options' in data.headers) { 
+      allHeaders['x-frame-options'] = data.headers['x-frame-options'];
+    }
+    if ('x-styx-req-id' in data.headers) { 
+      allHeaders['x-styx-req-id'] = data.headers['x-styx-req-id'];
+    }
+    if ('content-language' in data.headers) { 
+      allHeaders['content-language'] = data.headers['content-language'];
+    }
+    if ('content-type' in data.headers) { 
+      allHeaders['content-type'] = data.headers['content-type'];
+    }
+    if ('vary' in data.headers) { 
+      allHeaders['vary'] = data.headers['vary'];
+    }
+    if ('via' in data.headers) { 
+      allHeaders['via'] = data.headers['via'];
+    }
+    if ('content-length' in data.headers) { 
+      allHeaders['content-length'] = data.headers['content-length'];
     }
     
     console.log('Received headers:', allHeaders);
-    
-    // Get simulated status code - usually 200 but can occasionally be others
-    const statusCode = 200;
     
     // Extract common headers
     const server = allHeaders['server'] || "Unknown";
@@ -93,12 +173,29 @@ export const checkUrl = async (url: string): Promise<{
     const expires = allHeaders['expires'] || "";
     const lastModified = allHeaders['last-modified'] || "";
     const etag = allHeaders['etag'] || "";
+
+    // Other useful headers
+    const usefulHeaders = Object.keys(allHeaders)
+      .filter(key => 
+        key.toLowerCase().includes('x-drupal-') || 
+        key.toLowerCase().includes('x-content') ||
+        key.toLowerCase().includes('x-pantheon-styx') ||
+        key.toLowerCase().includes('strict-transport-') || 
+        key.toLowerCase().includes('x-frame') ||
+        key.toLowerCase().includes('x-styx-req') ||
+        key.toLowerCase().includes('content-') ||
+        key.toLowerCase().includes('version-') ||
+        key.toLowerCase().includes('via') ||
+        key.toLowerCase().includes('vary') 
+      )
+      .map(key => `${key}: ${allHeaders[key]}`)
+      .join('\n');
     
     // Extract Fastly specific headers
     const fastlyDebugHeaders = Object.keys(allHeaders)
       .filter(key => 
-        key.toLowerCase().includes('fastly') || 
-        key.toLowerCase().includes('surrogate-key')
+        key.toLowerCase().includes('fastly-debug-') || 
+        key.toLowerCase() === 'surrogate-key'
       )
       .map(key => `${key}: ${allHeaders[key]}`)
       .join('\n');
@@ -106,9 +203,10 @@ export const checkUrl = async (url: string): Promise<{
     // Extract Pantheon specific headers
     const pantheonDebugHeaders = Object.keys(allHeaders)
       .filter(key => 
-        key.toLowerCase().includes('pantheon') || 
-        key.toLowerCase().includes('x-drupal') || 
-        key.toLowerCase().includes('styx')
+        key.toLowerCase() === 'surrogate-key-raw' || 
+        key.toLowerCase().includes('policy-doc') || 
+        key.toLowerCase().includes('pcontext') ||
+        key.toLowerCase().includes('pantheon-')
       )
       .map(key => `${key}: ${allHeaders[key]}`)
       .join('\n');
@@ -118,9 +216,6 @@ export const checkUrl = async (url: string): Promise<{
       .filter(key => key.toLowerCase().includes('cf-'))
       .map(key => `${key}: ${allHeaders[key]}`)
       .join('\n');
-    
-    // Calculate approximate response time (we don't have actual value)
-    const responseTime = Math.floor(Math.random() * 300) + 50;
     
     // Calculate caching score based on the headers
     const cachingScore = calculateCachingScore(
@@ -145,17 +240,11 @@ export const checkUrl = async (url: string): Promise<{
     // Create the result object with simulated header values
     const result: HeaderResult = {
       url: url,
-      statusCode: statusCode,
-      server: server,
-      cacheStatus: cacheStatus,
-      cacheControl: cacheControl,
-      age: age,
-      expires: expires,
-      lastModified: lastModified,
-      etag: etag,
-      responseTime: responseTime,
+      status: data.status,
+      headers: allHeaders,
       humanReadableSummary: generateSummary(url, server, cachingScore, responseTime, cacheStatus),
       cachingScore: cachingScore,
+      usefulHeaders: usefulHeaders,
       fastlyDebug: fastlyDebugHeaders,
       pantheonDebug: pantheonDebugHeaders,
       cloudflareDebug: cloudflareDebugHeaders,
@@ -182,143 +271,7 @@ export const checkUrl = async (url: string): Promise<{
     };
   } catch (error) {
     console.error("Error fetching headers:", error);
-    
-    // Fallback to simulated headers if we couldn't get real ones
-    return generateSimulatedResponse(url);
   }
-};
-
-// Helper function to determine server type from URL
-const getSimulatedServerType = (url: string): string => {
-  const domain = url.toLowerCase();
-  
-  if (domain.includes('nginx')) return 'nginx';
-  if (domain.includes('apache')) return 'Apache';
-  if (domain.includes('cloudflare')) return 'cloudflare';
-  if (domain.includes('pantheon')) return 'nginx (Pantheon)';
-  if (domain.includes('fastly')) return 'Varnish/Fastly';
-  if (domain.includes('wordpress')) return 'Apache';
-  if (domain.includes('drupal')) return 'nginx (Pantheon)';
-  
-  // Random selection of common server types
-  const servers = ['nginx', 'Apache', 'cloudflare', 'Microsoft-IIS/10.0', 'nginx (Pantheon)', 'Varnish/Fastly'];
-  return servers[Math.floor(Math.random() * servers.length)];
-};
-
-// Generate a fallback/simulated response when header fetching fails
-const generateSimulatedResponse = async (url: string) => {
-  console.log("Using simulated response for demonstration");
-  
-  // Determine simulated server type based on URL
-  const serverType = getSimulatedServerType(url);
-  
-  // Simulate response time
-  const responseTime = Math.floor(Math.random() * 300) + 50;
-  
-  // Simulate cache status
-  const cacheStatus = Math.random() > 0.5 ? "HIT" : "MISS";
-  
-  // Simulate common cache control
-  const cacheControl = "max-age=3600, public";
-  
-  // Simulate age
-  const age = Math.floor(Math.random() * 1800).toString();
-  
-  // Simulate other headers
-  const expires = new Date(Date.now() + 3600000).toUTCString();
-  const lastModified = new Date(Date.now() - 86400000).toUTCString();
-  const etag = `"${Math.random().toString(36).substring(2, 15)}"`;
-  
-  // Calculate caching score
-  const cachingScore = calculateCachingScore(
-    cacheControl,
-    etag,
-    lastModified,
-    expires,
-    cacheStatus,
-    age
-  );
-  
-  // Generate fastly debug headers
-  let fastlyDebugHeaders = "";
-  if (serverType.includes("Fastly") || Math.random() > 0.7) {
-    fastlyDebugHeaders = 
-      "fastly-debug-state: VALID, STALE\n" +
-      "fastly-debug-digest: 2c7f4efc24a5884884574dabe19e4a6a\n" +
-      "surrogate-key: front homepage section\n" +
-      "surrogate-control: max-age=604800";
-  }
-  
-  // Generate pantheon debug headers
-  let pantheonDebugHeaders = "";
-  if (serverType.includes("Pantheon") || Math.random() > 0.7) {
-    pantheonDebugHeaders = 
-      "x-pantheon-styx-hostname: styx-fe1-a-789f66bcd9-xv2kl\n" +
-      "x-styx-req-id: 25dd3b47-6a7e-11eb-b8af-9f7b2aa7f14c\n" +
-      "pantheon-req-id: styx-789f66bcd9-xv2kl-5723921\n" +
-      "x-drupal-cache: HIT\n" +
-      "x-drupal-dynamic-cache: MISS";
-  }
-  
-  // Generate cloudflare debug headers
-  let cloudflareDebugHeaders = "";
-  if (serverType.includes("cloudflare") || Math.random() > 0.7) {
-    cloudflareDebugHeaders = 
-      "cf-ray: 63f561c1bdbc1859-EWR\n" +
-      "cf-cache-status: " + (Math.random() > 0.5 ? "HIT" : "MISS") + "\n" +
-      "cf-polished: 2\n" +
-      "cf-apo-via: tcache\n" +
-      "cf-edge-cache: cache,platform=wordpress";
-  }
-  
-  // Generate performance suggestions
-  const performanceSuggestions = generatePerformanceSuggestions(
-    cacheControl,
-    etag,
-    lastModified,
-    serverType,
-    cachingScore,
-    responseTime
-  );
-  
-  // Create result object
-  const result: HeaderResult = {
-    url: url,
-    statusCode: 200, // Usually 200 for demonstration
-    server: serverType,
-    cacheStatus: cacheStatus,
-    cacheControl: cacheControl,
-    age: age,
-    expires: expires,
-    lastModified: lastModified,
-    etag: etag,
-    responseTime: responseTime,
-    humanReadableSummary: generateSummary(url, serverType, cachingScore, responseTime, cacheStatus),
-    cachingScore: cachingScore,
-    fastlyDebug: fastlyDebugHeaders,
-    pantheonDebug: pantheonDebugHeaders,
-    cloudflareDebug: cloudflareDebugHeaders,
-    performanceSuggestions: performanceSuggestions
-  };
-  
-  // Import these at runtime to avoid circular dependencies
-  const { generateGoCode, generatePhpCode } = await import('@/utils/codeGenerators');
-  
-  // Generate the equivalent Go code with debug headers
-  const generatedGoCode = generateGoCode(url, serverType);
-  
-  // Generate the equivalent PHP code with debug headers
-  const generatedPhpCode = generatePhpCode(url, serverType);
-
-  // Generate the curl command
-  const curlCmd = generateCurlCommand(url);
-  
-  return {
-    result: result,
-    goCode: generatedGoCode,
-    phpCode: generatedPhpCode,
-    curlCommand: curlCmd
-  };
 };
 
 // Generate performance suggestions based on header analysis
