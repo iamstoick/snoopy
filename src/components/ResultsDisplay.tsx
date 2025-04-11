@@ -34,7 +34,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, goCode, phpCode
           onOpenChange={setIsCurlExpanded}
           className="w-full"
         >
-          <div className="bg-gray-900 text-gray-100 p-6 rounded-t-lg shadow-lg">
+          <div className="bg-gray-900 text-gray-100 p-6 rounded-full shadow-lg">
             <CollapsibleTrigger className="flex justify-between items-center w-full">
               <h2 className="text-xl font-semibold">cURL Command</h2>
               <div className="flex items-center">
@@ -68,7 +68,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, goCode, phpCode
           onOpenChange={setIsGoExpanded}
           className="w-full"
         >
-          <div className="bg-gray-900 text-gray-100 p-6 rounded-t-lg shadow-lg">
+          <div className="bg-gray-900 text-gray-100 p-6 rounded-full shadow-lg">
             <CollapsibleTrigger className="flex justify-between items-center w-full">
               <h2 className="text-xl font-semibold">Equivalent Go Code</h2>
               <div className="flex items-center">
@@ -102,7 +102,7 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, goCode, phpCode
           onOpenChange={setIsPhpExpanded}
           className="w-full"
         >
-          <div className="bg-gray-900 text-gray-100 p-6 rounded-t-lg shadow-lg">
+          <div className="bg-gray-900 text-gray-100 p-6 rounded-full shadow-lg">
             <CollapsibleTrigger className="flex justify-between items-center w-full">
               <h2 className="text-xl font-semibold">Equivalent PHP Code (PHP 8.1+)</h2>
               <div className="flex items-center">

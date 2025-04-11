@@ -1,5 +1,5 @@
 import { HeaderResult } from '@/components/ResultCard';
-import { calculateCachingScore, generateSummary } from '@/utils/headerAnalyzer';
+import { calculateCachingScore, generateSummary, getDetailedPerformanceTiming } from '@/utils/headerAnalyzer';
 
 // Generate a curl command for the URL with debug headers
 const generateCurlCommand = (url: string): string => {
@@ -23,12 +23,23 @@ export const checkUrl = async (url: string): Promise<{
   
   try {
     // Create a proxy URL to avoid CORS issues
+    // Make a separate request to get the response time
+    // Example usage:
+    /*const totalTime = await getDetailedPerformanceTiming(url, (totalTime) => {
+      console.log('totalTime from callback:', totalTime);
+      return totalTime;
+    });
+    console.log('totalTime :', totalTime );*/
+
+    const start = performance.now();
+    await fetch(encodeURIComponent(url));
+    const responseTimeRaw = performance.now() - start;
+    const responseTime = parseFloat(responseTimeRaw.toFixed(2));
+
+    // Make a proxy request to fetch headers
     const proxyUrl = 'https://2ce35250-6caf-4679-9f7c-5f3f9b29be3f-00-2wj5812hu9b5s.sisko.replit.dev/proxy?url=' + encodeURIComponent(url);
-    const start = Date.now();
     const response = await fetch(proxyUrl);
-    const responseTime = Date.now() - start;
     const data: HeaderResult = await response.json();
-    
     if (data.status != 200) {
       throw new Error('Failed to fetch headers');
     }
@@ -38,12 +49,11 @@ export const checkUrl = async (url: string): Promise<{
     console.log('Received raw headers:', responseHeaders);
 
     
-    // Create simulated headers based on actual response and URL analysis
-    // In production, you would get these from the actual URL response
+    
     const allHeaders: Record<string, string> = {};
 
-    // Not really a header, but we can use it to simulate the server type
     allHeaders['response-time'] = responseTime.toString() || "Unknown";
+    //allHeaders['total-response-time'] = totalTime.toString() || "Unknown";
     
     // Add basic headers that would be present
     allHeaders['content-type'] = data.headers['content-type'];
@@ -131,18 +141,65 @@ export const checkUrl = async (url: string): Promise<{
       allHeaders['cf-edge-cache'] = data.headers['cf-edge-cache'] || "Unknown";
     }
 
+    // Cloudfront specific headers
+    if ('x-amz-cf-id' in data.headers) {
+      allHeaders['x-amz-cf-id'] = data.headers['x-amz-cf-id'];
+    }
+    if ('x-amz-cf-pop' in data.headers) {
+      allHeaders['x-amz-cf-pop'] = data.headers['x-amz-cf-pop'];
+    }
+    if ('x-amz-cf-status' in data.headers) {
+      allHeaders['x-amz-cf-status'] = data.headers['x-amz-cf-status'];
+    }
+    if ('x-amz-cf-variant' in data.headers) {
+      allHeaders['x-amz-cf-variant'] = data.headers['x-amz-cf-variant'];
+    }
+    if ('x-amz-cf-visitor' in data.headers) {
+      allHeaders['x-amz-cf-visitor'] = data.headers['x-amz-cf-visitor'];
+    }
+    if ('x-amz-cf-trace-id' in data.headers) {
+      allHeaders['x-amz-cf-trace-id'] = data.headers['x-amz-cf-trace-id'];
+    }
+
+    // Security headers
+    if ('strict-transport-security' in data.headers) { 
+      allHeaders['strict-transport-security'] = data.headers['strict-transport-security'];
+    }
+    if ('x-xss-protection' in data.headers) {
+      allHeaders['x-xss-protection'] = data.headers['x-xss-protection'];
+    }
+    if ('x-content-security-policy' in data.headers) {
+      allHeaders['x-content-security-policy'] = data.headers['x-content-security-policy'];
+    }
+    if ('x-frame-options' in data.headers) {
+      allHeaders['x-frame-options'] = data.headers['x-frame-options'];
+    }
+    if ('x-permitted-cross-domain-policies' in data.headers) {
+      allHeaders['x-permitted-cross-domain-policies'] = data.headers['x-permitted-cross-domain-policies'];
+    }
+    if ('x-download-options' in data.headers) {
+      allHeaders['x-download-options'] = data.headers['x-download-options'];
+    }
+    if ('x-content-security-policy-report-only' in data.headers) {
+      allHeaders['x-content-security-policy-report-only'] = data.headers['x-content-security-policy-report-only'];
+    }
+    if ('content-security-policy-report-only' in data.headers) {
+      allHeaders['content-security-policy-report-only'] = data.headers['content-security-policy-report-only'];
+    }
+    if ('x-webkit-csp' in data.headers) {
+      allHeaders['x-webkit-csp'] = data.headers['x-webkit-csp'];
+    }
+    if ('x-dns-prefetch-control' in data.headers) {
+      allHeaders['x-dns-prefetch-control'] = data.headers['x-dns-prefetch-control'];
+    }
+  
+
     // Other headers
     if ('x-content-type-options' in data.headers) { 
       allHeaders['x-content-type-options'] = data.headers['x-content-type-options'];
     }
-    if ('strict-transport-security' in data.headers) { 
-      allHeaders['strict-transport-security'] = data.headers['strict-transport-security'];
-    }
     if ('x-pantheon-styx-hostname' in data.headers) { 
       allHeaders['x-pantheon-styx-hostname'] = data.headers['x-pantheon-styx-hostname'];
-    }
-    if ('x-frame-options' in data.headers) { 
-      allHeaders['x-frame-options'] = data.headers['x-frame-options'];
     }
     if ('x-styx-req-id' in data.headers) { 
       allHeaders['x-styx-req-id'] = data.headers['x-styx-req-id'];
@@ -153,14 +210,44 @@ export const checkUrl = async (url: string): Promise<{
     if ('content-type' in data.headers) { 
       allHeaders['content-type'] = data.headers['content-type'];
     }
+    if ('content-length' in data.headers) { 
+      allHeaders['content-length'] = data.headers['content-length'];
+    }
+    if ('content-encoding' in data.headers) { 
+      allHeaders['content-encoding'] = data.headers['content-encoding'];
+    }
     if ('vary' in data.headers) { 
       allHeaders['vary'] = data.headers['vary'];
     }
     if ('via' in data.headers) { 
       allHeaders['via'] = data.headers['via'];
     }
-    if ('content-length' in data.headers) { 
-      allHeaders['content-length'] = data.headers['content-length'];
+    if ('version-epoch' in data.headers) { 
+      allHeaders['version-epoch'] = data.headers['version-epoch'];
+    }
+    if ('x-robots-tag' in data.headers) { 
+      allHeaders['x-robots-tag'] = data.headers['x-robots-tag'];
+    }
+    if ('x-fastly-cache-status' in data.headers) { 
+      allHeaders['x-fastly-cache-status'] = data.headers['x-fastly-cache-status'];
+    }
+    if ('x-fastly-pre-flight-cache' in data.headers) { 
+      allHeaders['x-fastly-pre-flight-cache'] = data.headers['x-fastly-pre-flight-cache'];
+    }
+    if ('x-fastly-pre-flight-cache-status' in data.headers) { 
+      allHeaders['x-fastly-pre-flight-cache-status'] = data.headers['x-fastly-pre-flight-cache-status'];
+    }
+    if ('fastly-restarts' in data.headers) { 
+      allHeaders['fastly-restarts'] = data.headers['fastly-restarts'];
+    }
+    if ('alt-svc' in data.headers) { 
+      allHeaders['alt-svc'] = data.headers['alt-svc'];
+    }
+    if ('referrer-policy' in data.headers) { 
+      allHeaders['referrer-policy'] = data.headers['referrer-policy'];
+    }
+    if ('set-cookie' in data.headers) { 
+      allHeaders['set-cookie'] = data.headers['set-cookie'];
     }
     
     console.log('Received headers:', allHeaders);
@@ -174,19 +261,38 @@ export const checkUrl = async (url: string): Promise<{
     const lastModified = allHeaders['last-modified'] || "";
     const etag = allHeaders['etag'] || "";
 
+    // Security headers
+    const securityHeaders = Object.keys(allHeaders)
+      .filter(key => 
+        key.toLowerCase().includes('strict-transport-') || 
+        key.toLowerCase().includes('x-xss-') ||
+        key.toLowerCase().includes('content-security-') ||
+        key.toLowerCase().includes('x-frame-') || 
+        key.toLowerCase().includes('x-permitted-') ||
+        key.toLowerCase().includes('x-download-') ||
+        key.toLowerCase().includes('x-webkit-') ||
+        key.toLowerCase().includes('x-content') ||
+        key.toLowerCase().includes('x-dns-')
+      )
+      .map(key => `${key}: ${allHeaders[key]}`)
+      .join('\n');
+    
+
     // Other useful headers
     const usefulHeaders = Object.keys(allHeaders)
       .filter(key => 
         key.toLowerCase().includes('x-drupal-') || 
-        key.toLowerCase().includes('x-content') ||
         key.toLowerCase().includes('x-pantheon-styx') ||
-        key.toLowerCase().includes('strict-transport-') || 
-        key.toLowerCase().includes('x-frame') ||
         key.toLowerCase().includes('x-styx-req') ||
-        key.toLowerCase().includes('content-') ||
+        key.toLowerCase().startsWith('content-') ||
         key.toLowerCase().includes('version-') ||
         key.toLowerCase().includes('via') ||
-        key.toLowerCase().includes('vary') 
+        key.toLowerCase().includes('vary') ||
+        key.toLowerCase().includes('total-response') ||
+        key.toLowerCase().includes('x-robots-') ||
+        key.toLowerCase() === 'alt-svc' ||
+        key.toLowerCase() === 'referrer-policy' ||
+        key.toLowerCase() === 'set-cookie' 
       )
       .map(key => `${key}: ${allHeaders[key]}`)
       .join('\n');
@@ -195,7 +301,10 @@ export const checkUrl = async (url: string): Promise<{
     const fastlyDebugHeaders = Object.keys(allHeaders)
       .filter(key => 
         key.toLowerCase().includes('fastly-debug-') || 
-        key.toLowerCase() === 'surrogate-key'
+        key.toLowerCase() === 'surrogate-key' ||
+        key.toLowerCase().includes('x-fastly-cache') ||
+        key.toLowerCase().includes('x-fastly-pre-') ||
+        key.toLowerCase() === 'fastly-restarts'
       )
       .map(key => `${key}: ${allHeaders[key]}`)
       .join('\n');
@@ -214,6 +323,12 @@ export const checkUrl = async (url: string): Promise<{
     // Extract Cloudflare specific headers
     const cloudflareDebugHeaders = Object.keys(allHeaders)
       .filter(key => key.toLowerCase().includes('cf-'))
+      .map(key => `${key}: ${allHeaders[key]}`)
+      .join('\n');
+
+    // Extract Cloudfront specific headers
+    const cloudfrontDebugHeaders = Object.keys(allHeaders)
+      .filter(key => key.toLowerCase().includes('x-amz'))
       .map(key => `${key}: ${allHeaders[key]}`)
       .join('\n');
     
@@ -244,10 +359,12 @@ export const checkUrl = async (url: string): Promise<{
       headers: allHeaders,
       humanReadableSummary: generateSummary(url, server, cachingScore, responseTime, cacheStatus),
       cachingScore: cachingScore,
+      securityHeaders: securityHeaders,
       usefulHeaders: usefulHeaders,
       fastlyDebug: fastlyDebugHeaders,
       pantheonDebug: pantheonDebugHeaders,
       cloudflareDebug: cloudflareDebugHeaders,
+      cloudfrontDebugHeaders: cloudfrontDebugHeaders,
       performanceSuggestions: performanceSuggestions
     };
     

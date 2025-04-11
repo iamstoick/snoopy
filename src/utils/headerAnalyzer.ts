@@ -110,3 +110,97 @@ export const generateSummary = (url: string, serverType: string, score: number, 
     } Implementing proper caching would significantly improve performance for repeat visitors and reduce server load.`;
   }
 };
+
+// Generate a performance score based on response time and caching headers
+export const calculatePerformanceScore = async (url: string) => {
+  const startTime = performance.now();
+  const response = await fetch(url);
+  const endTime = performance.now();
+  const responseTime = endTime - startTime;
+  const headers = response.headers;
+
+  let score = 0;
+  const maxScore = 20; // Example maximum score
+
+  // Response Time Score (Example)
+  if (responseTime < 100) score += 5;
+  else if (responseTime < 300) score += 4;
+  // ... and so on
+
+  // Cache-Control Score (Example)
+  const cacheControl = headers.get('cache-control');
+  if (cacheControl && cacheControl.includes('public') && cacheControl.includes('max-age')) {
+    const maxAgeMatch = cacheControl.match(/max-age=(\d+)/);
+    if (maxAgeMatch && parseInt(maxAgeMatch[1]) > 3600) {
+      score += 5;
+    } else if (maxAgeMatch) {
+      score += 3;
+    }
+  } else if (cacheControl && cacheControl.includes('no-store')) {
+    score += 1;
+  }
+
+  // Cache Status Score (Example)
+  const cacheStatus = headers.get('X-Cache') || headers.get('Cache-Status');
+  if (cacheStatus && cacheStatus.toLowerCase().includes('hit')) {
+    score += 5;
+  } else if (cacheStatus && cacheStatus.toLowerCase().includes('miss')) {
+    score += 2;
+  }
+
+  // Age Score (Example)
+  const ageHeader = headers.get('Age');
+  if (ageHeader && parseInt(ageHeader) < 60 && cacheStatus && cacheStatus.toLowerCase().includes('hit')) {
+    score += 3;
+  }
+
+  // Normalize the score to a percentage (Example)
+  const percentageScore = (score / maxScore) * 100;
+  return percentageScore;
+};
+
+export const getDetailedPerformanceTiming = async (url: string, callback: (totalTime: number | null) => void) => {
+  const startTime = performance.now();
+  const response = await fetch(url, { mode: 'no-cors' });
+  const endTime = performance.now();
+  const basicResponseTime = endTime - startTime;
+  console.log(`Basic Response Time (TTFB approx.): ${basicResponseTime.toFixed(2)} ms`);
+  console.log(`Workspaceing URL: ${url}`);
+
+  new Promise<number | null>((resolve) => {
+    const handleResourceTiming = () => {
+      const entries = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+      console.log("Resource Timing Entries (on buffer full):", entries.map(e => e.name));
+      const entryForUrl = entries.find(entry => entry.name === url);
+      if (entryForUrl) {
+        const totalTime = entryForUrl.responseEnd - entryForUrl.requestStart;
+        console.log(`Total Request Time (from Performance API) with no-cors: ${totalTime.toFixed(2)} ms`);
+        resolve(totalTime);
+        callback(totalTime); // Execute the callback with totalTime
+      } else {
+        console.log("Detailed timing entry NOT FOUND for:", url, " (on buffer full)");
+        resolve(null);
+        callback(null); // Execute the callback with null
+      }
+      performance.clearResourceTimings();
+    };
+
+    performance.addEventListener('resourcetimingbufferfull', handleResourceTiming, { once: true });
+
+    setTimeout(() => {
+      const entries = performance.getEntriesByType("resource") as PerformanceResourceTiming[];
+      console.log("Resource Timing Entries (on timeout):", entries.map(e => e.name));
+      const entryForUrl = entries.find(entry => entry.name === url);
+      if (entryForUrl) {
+        const totalTime = entryForUrl.responseEnd - entryForUrl.requestStart;
+        console.log(`Total Request Time (from Performance API) with no-cors: ${totalTime.toFixed(2)} ms`);
+        resolve(totalTime);
+        callback(totalTime); // Execute the callback with totalTime
+      } else {
+        console.log("Detailed timing entry NOT FOUND for:", url, " (on timeout)");
+        resolve(null);
+        callback(null); // Execute the callback with null
+      }
+    }, 100);
+  });
+};

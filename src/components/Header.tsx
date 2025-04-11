@@ -12,10 +12,10 @@ const Header = () => {
     >
       <div className="container px-4 mx-auto">
         <h1 className="text-3xl font-light text-center text-gray-900 md:text-4xl lg:text-5xl">
-          <span className="font-semibold">Cache</span>Checker
+          Response<span className="font-semibold">Header</span>Analyzer
         </h1>
         <p className="mt-2 text-base text-center text-gray-500 md:text-lg">
-          Simplifying HTTP caching insights
+          Simplifying HTTP response headers insights
         </p>
       </div>
     </motion.header>

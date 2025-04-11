@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
-import { ServerIcon, Database, Clock, Bug, Zap, Shield } from 'lucide-react';
+import { ServerIcon, Database, Clock, Bug, Zap, Shield, Info } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export interface HeaderResult {
@@ -11,10 +11,12 @@ export interface HeaderResult {
   status: number;
   humanReadableSummary: string;
   cachingScore: number;
+  securityHeaders?: string;
   usefulHeaders?: string;
   fastlyDebug?: string;
   pantheonDebug?: string;
   cloudflareDebug?: string;
+  cloudfrontDebugHeaders?: string;
   performanceSuggestions?: string[];
 }
 
@@ -185,18 +187,36 @@ const formatDebugContent = (content: string) => {
                   </ul>
                 </div>
               )}
- 
-              {/* Other Headers Section */}
-              {result.usefulHeaders && (
+
+              {/* Security Headers Section */}
+              {(result.securityHeaders) && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
                   <h3 className="mb-4 text-lg font-medium text-gray-900 flex items-center">
                     <Shield className="w-5 h-5 mr-2 text-blue-500" />
-                    Additional Headers
+                    Security Related Headers
                   </h3>
                   <div className="grid grid-cols-1 gap-4">
                     {result.fastlyDebug && (
                       <div className="p-4 rounded-lg bg-gray-50 border-l-4 border-blue-500">
-                        <p className="text-sm font-medium text-gray-500 mb-2">Useful Headers</p>
+                        <div className="space-y-1">
+                          {formatDebugContent(result.securityHeaders)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+ 
+              {/* Other Headers Section */}
+              {(result.usefulHeaders) && (
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                  <h3 className="mb-4 text-lg font-medium text-gray-900 flex items-center">
+                    <Info className="w-5 h-5 mr-2 text-blue-500" />
+                    Random Headers
+                  </h3>
+                  <div className="grid grid-cols-1 gap-4">
+                    {result.fastlyDebug && (
+                      <div className="p-4 rounded-lg bg-gray-50 border-l-4 border-blue-500">
                         <div className="space-y-1">
                           {formatDebugContent(result.usefulHeaders)}
                         </div>
@@ -207,7 +227,7 @@ const formatDebugContent = (content: string) => {
               )}
               
               {/* Debug Headers Section with improved formatting */}
-              {(result.fastlyDebug || result.pantheonDebug || result.cloudflareDebug) && (
+              {(result.fastlyDebug || result.pantheonDebug || result.cloudflareDebug || result.cloudfrontDebugHeaders) && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
                   <h3 className="mb-4 text-lg font-medium text-gray-900 flex items-center">
                     <Bug className="w-5 h-5 mr-2 text-blue-500" />
@@ -216,7 +236,7 @@ const formatDebugContent = (content: string) => {
                   <div className="grid grid-cols-1 gap-4">
                     {result.fastlyDebug && (
                       <div className="p-4 rounded-lg bg-gray-50 border-l-4 border-blue-500">
-                        <p className="text-sm font-medium text-gray-500 mb-2">Fastly-Debug:1</p>
+                        <p className="text-sm font-medium text-gray-500 mb-2">Fastly-Debug Headers</p>
                         <div className="space-y-1">
                           {formatDebugContent(result.fastlyDebug)}
                         </div>
@@ -225,7 +245,7 @@ const formatDebugContent = (content: string) => {
                     
                     {result.pantheonDebug && (
                       <div className="p-4 rounded-lg bg-gray-50 border-l-4 border-purple-500">
-                        <p className="text-sm font-medium text-gray-500 mb-2">Pantheon-Debug:1</p>
+                        <p className="text-sm font-medium text-gray-500 mb-2">Pantheon-Debug Headers</p>
                         <div className="space-y-1">
                           {formatDebugContent(result.pantheonDebug)}
                         </div>
@@ -237,6 +257,15 @@ const formatDebugContent = (content: string) => {
                         <p className="text-sm font-medium text-gray-500 mb-2">Cloudflare Headers</p>
                         <div className="space-y-1">
                           {formatDebugContent(result.cloudflareDebug)}
+                        </div>
+                      </div>
+                    )}
+
+                    {result.cloudfrontDebugHeaders && (
+                      <div className="p-4 rounded-lg bg-gray-50 border-l-4 border-orange-500">
+                        <p className="text-sm font-medium text-gray-500 mb-2">Cloudfront Headers</p>
+                        <div className="space-y-1">
+                          {formatDebugContent(result.cloudfrontDebugHeaders)}
                         </div>
                       </div>
                     )}
