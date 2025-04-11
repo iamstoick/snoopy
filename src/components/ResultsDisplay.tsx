@@ -18,6 +18,62 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, goCode, phpCode
   const [isPhpExpanded, setIsPhpExpanded] = useState(false);
   const [isCurlExpanded, setIsCurlExpanded] = useState(false);
 
+  const CodeExpander = ({ 
+    title, 
+    isExpanded, 
+    setIsExpanded, 
+    code, 
+    fileName, 
+    language, 
+    description, 
+    delay 
+  }: { 
+    title: string;
+    isExpanded: boolean;
+    setIsExpanded: (value: boolean) => void;
+    code: string;
+    fileName: string;
+    language: string;
+    description: string;
+    delay: number;
+  }) => {
+    if (!code) return null;
+    
+    return (
+      <Collapsible
+        open={isExpanded}
+        onOpenChange={setIsExpanded}
+        className="w-full"
+      >
+        <div className="bg-gray-900 text-gray-100 p-6 rounded-full shadow-lg">
+          <CollapsibleTrigger className="flex justify-between items-center w-full">
+            <h2 className="text-xl font-semibold">{title}</h2>
+            <div className="flex items-center">
+              <span className="text-sm text-gray-400 mr-2">
+                {isExpanded ? 'Click to collapse' : 'Click to expand'}
+              </span>
+              {isExpanded ? (
+                <ChevronDown className="h-5 w-5" />
+              ) : (
+                <ChevronRight className="h-5 w-5" />
+              )}
+            </div>
+          </CollapsibleTrigger>
+        </div>
+        <CollapsibleContent>
+          <CodeBlock
+            title=""
+            description={description}
+            code={code}
+            fileName={fileName}
+            language={language}
+            delay={delay}
+          />
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
   return (
     <motion.div
       key="result"
@@ -28,107 +84,38 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ result, goCode, phpCode
     >
       <ResultCard result={result} />
       
-      {curlCommand && (
-        <Collapsible
-          open={isCurlExpanded}
-          onOpenChange={setIsCurlExpanded}
-          className="w-full"
-        >
-          <div className="bg-gray-900 text-gray-100 p-6 rounded-full shadow-lg">
-            <CollapsibleTrigger className="flex justify-between items-center w-full">
-              <h2 className="text-xl font-semibold">cURL Command</h2>
-              <div className="flex items-center">
-                <span className="text-sm text-gray-400 mr-2">
-                  {isCurlExpanded ? 'Click to collapse' : 'Click to expand'}
-                </span>
-                {isCurlExpanded ? (
-                  <ChevronDown className="h-5 w-5" />
-                ) : (
-                  <ChevronRight className="h-5 w-5" />
-                )}
-              </div>
-            </CollapsibleTrigger>
-          </div>
-          <CollapsibleContent>
-            <CodeBlock
-              title=""
-              description="Use this curl command to fetch HTTP headers via command line:"
-              code={curlCommand}
-              fileName="terminal"
-              language="bash"
-              delay={0.1}
-            />
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+      <CodeExpander
+        title="cURL Command"
+        isExpanded={isCurlExpanded}
+        setIsExpanded={setIsCurlExpanded}
+        code={curlCommand}
+        fileName="terminal"
+        language="bash"
+        description="Use this curl command to fetch HTTP headers via command line:"
+        delay={0.1}
+      />
       
-      {goCode && (
-        <Collapsible
-          open={isGoExpanded}
-          onOpenChange={setIsGoExpanded}
-          className="w-full"
-        >
-          <div className="bg-gray-900 text-gray-100 p-6 rounded-full shadow-lg">
-            <CollapsibleTrigger className="flex justify-between items-center w-full">
-              <h2 className="text-xl font-semibold">Equivalent Go Code</h2>
-              <div className="flex items-center">
-                <span className="text-sm text-gray-400 mr-2">
-                  {isGoExpanded ? 'Click to collapse' : 'Click to expand'}
-                </span>
-                {isGoExpanded ? (
-                  <ChevronDown className="h-5 w-5" />
-                ) : (
-                  <ChevronRight className="h-5 w-5" />
-                )}
-              </div>
-            </CollapsibleTrigger>
-          </div>
-          <CollapsibleContent>
-            <CodeBlock
-              title=""
-              description="Here's a Go program that performs the same header check via command line. Copy this code, save it as"
-              code={goCode}
-              fileName="cachecheck.go"
-              language="go run"
-              delay={0.3}
-            />
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+      <CodeExpander
+        title="Equivalent Go Code"
+        isExpanded={isGoExpanded}
+        setIsExpanded={setIsGoExpanded}
+        code={goCode}
+        fileName="cachecheck.go"
+        language="go run"
+        description="Here's a Go program that performs the same header check via command line. Copy this code, save it as"
+        delay={0.3}
+      />
 
-      {phpCode && (
-        <Collapsible
-          open={isPhpExpanded}
-          onOpenChange={setIsPhpExpanded}
-          className="w-full"
-        >
-          <div className="bg-gray-900 text-gray-100 p-6 rounded-full shadow-lg">
-            <CollapsibleTrigger className="flex justify-between items-center w-full">
-              <h2 className="text-xl font-semibold">Equivalent PHP Code (PHP 8.1+)</h2>
-              <div className="flex items-center">
-                <span className="text-sm text-gray-400 mr-2">
-                  {isPhpExpanded ? 'Click to collapse' : 'Click to expand'}
-                </span>
-                {isPhpExpanded ? (
-                  <ChevronDown className="h-5 w-5" />
-                ) : (
-                  <ChevronRight className="h-5 w-5" />
-                )}
-              </div>
-            </CollapsibleTrigger>
-          </div>
-          <CollapsibleContent>
-            <CodeBlock
-              title=""
-              description="Here's a PHP script that performs the same header check. Copy this code, save it as"
-              code={phpCode}
-              fileName="cachecheck.php"
-              language="php"
-              delay={0.5}
-            />
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+      <CodeExpander
+        title="Equivalent PHP Code (PHP 8.1+)"
+        isExpanded={isPhpExpanded}
+        setIsExpanded={setIsPhpExpanded}
+        code={phpCode}
+        fileName="cachecheck.php"
+        language="php"
+        description="Here's a PHP script that performs the same header check. Copy this code, save it as"
+        delay={0.5}
+      />
     </motion.div>
   );
 };
