@@ -41,19 +41,18 @@ const getIpAddressInfo = async (domainName: string): Promise<{ ip: string, locat
 const detectHttpVersion = async (url: string): Promise<string> => {
   try {
     const response = await request(url);
-    const httpVersion = response.httpVersion;
-    console.log("Undici detected HTTP Version:", httpVersion);
+    console.log("Undici detected HTTP Version:", response.httpVersion);
     
-    if (httpVersion === '2.0') {
+    if (response.httpVersion === '2.0') {
       return 'HTTP/2';
-    } else if (httpVersion === '3.0') {
+    } else if (response.httpVersion === '3.0') {
       return 'HTTP/3 (QUIC)';
-    } else if (httpVersion === '1.1') {
+    } else if (response.httpVersion === '1.1') {
       return 'HTTP/1.1';
-    } else if (httpVersion === '1.0') {
+    } else if (response.httpVersion === '1.0') {
       return 'HTTP/1.0';
-    } else if (httpVersion) {
-      return `HTTP/${httpVersion}`;
+    } else if (response.httpVersion) {
+      return `HTTP/${response.httpVersion}`;
     }
     
     return 'HTTP/1.1 (presumed)';
@@ -106,7 +105,7 @@ export const checkUrl = async (url: string): Promise<{
     const ipInfo = await getIpAddressInfo(url);
     
     // Get HTTP protocol version using undici
-    const detectedHttpVersion = await detectHttpVersion(url);
+    let detectedHttpVersion = await detectHttpVersion(url);
     console.log("Detected HTTP Version:", detectedHttpVersion);
     
     // Create a proxy URL to avoid CORS issues
@@ -136,10 +135,9 @@ export const checkUrl = async (url: string): Promise<{
     console.log('Received raw headers:', responseHeaders);
 
     // Use the detected HTTP version from undici or try to determine from headers
-    let httpVersion = detectedHttpVersion;
     if (detectedHttpVersion === 'HTTP/1.1 (presumed)' && response.headers && typeof response.headers.get === 'function') {
       // Only fall back to header detection if undici couldn't determine the version
-      httpVersion = fallbackHttpVersionDetection(response.headers);
+      detectedHttpVersion = fallbackHttpVersionDetection(response.headers);
     }
     
     const allHeaders: Record<string, string> = {};
@@ -441,7 +439,7 @@ export const checkUrl = async (url: string): Promise<{
       server,
       cachingScore,
       responseTime,
-      httpVersion
+      detectedHttpVersion
     );
     
     // Create the result object with simulated header values
@@ -451,7 +449,7 @@ export const checkUrl = async (url: string): Promise<{
       headers: allHeaders,
       humanReadableSummary: generateSummary(url, server, cachingScore, responseTime, cacheStatus),
       cachingScore: cachingScore,
-      httpVersion: httpVersion,
+      httpVersion: detectedHttpVersion,
       ipAddress: ipInfo?.ip,
       ipLocation: ipInfo?.location,
       securityHeaders: securityHeaders,
