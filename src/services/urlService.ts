@@ -1,6 +1,5 @@
 import { HeaderResult } from '@/components/ResultCard';
 import { calculateCachingScore, generateSummary, getDetailedPerformanceTiming } from '@/utils/headerAnalyzer';
-import { request } from 'undici';
 
 // Generate a curl command for the URL with debug headers
 const generateCurlCommand = (url: string): string => {
@@ -37,33 +36,8 @@ const getIpAddressInfo = async (domainName: string): Promise<{ ip: string, locat
   }
 };
 
-// Detect HTTP protocol version using undici
-const detectHttpVersion = async (url: string): Promise<string> => {
-  try {
-    const response = await request(url);
-    console.log("Undici detected HTTP Version:", response.httpVersion);
-    
-    if (response.httpVersion === '2.0') {
-      return 'HTTP/2';
-    } else if (response.httpVersion === '3.0') {
-      return 'HTTP/3 (QUIC)';
-    } else if (response.httpVersion === '1.1') {
-      return 'HTTP/1.1';
-    } else if (response.httpVersion === '1.0') {
-      return 'HTTP/1.0';
-    } else if (response.httpVersion) {
-      return `HTTP/${response.httpVersion}`;
-    }
-    
-    return 'HTTP/1.1 (presumed)';
-  } catch (error) {
-    console.error("Error detecting HTTP version with undici:", error);
-    return 'HTTP/1.1 (presumed)';
-  }
-};
-
-// Fallback HTTP protocol detection from response headers
-const fallbackHttpVersionDetection = (headers: Headers): string => {
+// Detect HTTP protocol version from response headers
+const detectHttpVersion = (headers: Headers): string => {
   // Check for HTTP/2 or HTTP/3 specific headers
   if (headers.get('x-firefox-http3') || headers.get('x-firefox-spdy') === 'h3') {
     return 'HTTP/3 (QUIC)';
@@ -104,10 +78,6 @@ export const checkUrl = async (url: string): Promise<{
     // Get IP address information
     const ipInfo = await getIpAddressInfo(url);
     
-    // Get HTTP protocol version using undici
-    let detectedHttpVersion = await detectHttpVersion(url);
-    console.log("Detected HTTP Version:", detectedHttpVersion);
-    
     // Create a proxy URL to avoid CORS issues
     // Make a separate request to get the response time
     // Example usage:
@@ -134,13 +104,14 @@ export const checkUrl = async (url: string): Promise<{
     const responseHeaders = data.headers || {};
     console.log('Received raw headers:', responseHeaders);
 
-    // Use the detected HTTP version from undici or try to determine from headers
-    if (detectedHttpVersion === 'HTTP/1.1 (presumed)' && response.headers && typeof response.headers.get === 'function') {
-      // Only fall back to header detection if undici couldn't determine the version
-      detectedHttpVersion = fallbackHttpVersionDetection(response.headers);
+    // Try to determine HTTP version
+    let httpVersion = 'HTTP/1.1 (presumed)';
+    if (response.headers && typeof response.headers.get === 'function') {
+      httpVersion = detectHttpVersion(response.headers);
     }
     
     const allHeaders: Record<string, string> = {};
+
     allHeaders['response-time'] = responseTime.toString() || "Unknown";
     //allHeaders['total-response-time'] = totalTime.toString() || "Unknown";
     
@@ -439,7 +410,7 @@ export const checkUrl = async (url: string): Promise<{
       server,
       cachingScore,
       responseTime,
-      detectedHttpVersion
+      httpVersion
     );
     
     // Create the result object with simulated header values
@@ -449,7 +420,7 @@ export const checkUrl = async (url: string): Promise<{
       headers: allHeaders,
       humanReadableSummary: generateSummary(url, server, cachingScore, responseTime, cacheStatus),
       cachingScore: cachingScore,
-      httpVersion: detectedHttpVersion,
+      httpVersion: httpVersion,
       ipAddress: ipInfo?.ip,
       ipLocation: ipInfo?.location,
       securityHeaders: securityHeaders,
