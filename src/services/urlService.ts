@@ -40,7 +40,8 @@ const getIpAddressInfo = async (domainName: string): Promise<{ ip: string, locat
 // Detect HTTP protocol version using undici
 const detectHttpVersion = async (url: string): Promise<string> => {
   try {
-    const { httpVersion } = await request(url);
+    const response = await request(url);
+    const httpVersion = response.httpVersion;
     console.log("Undici detected HTTP Version:", httpVersion);
     
     if (httpVersion === '2.0') {
@@ -58,12 +59,12 @@ const detectHttpVersion = async (url: string): Promise<string> => {
     return 'HTTP/1.1 (presumed)';
   } catch (error) {
     console.error("Error detecting HTTP version with undici:", error);
-    return fallbackHttpVersionDetection();
+    return 'HTTP/1.1 (presumed)';
   }
 };
 
 // Fallback HTTP protocol detection from response headers
-const fallbackHttpVersionDetection = (): string => {
+const fallbackHttpVersionDetection = (headers: Headers): string => {
   // Check for HTTP/2 or HTTP/3 specific headers
   if (headers.get('x-firefox-http3') || headers.get('x-firefox-spdy') === 'h3') {
     return 'HTTP/3 (QUIC)';
@@ -105,8 +106,8 @@ export const checkUrl = async (url: string): Promise<{
     const ipInfo = await getIpAddressInfo(url);
     
     // Get HTTP protocol version using undici
-    const httpVersion = await detectHttpVersion(url);
-    console.log("Detected HTTP Version:", httpVersion);
+    const detectedHttpVersion = await detectHttpVersion(url);
+    console.log("Detected HTTP Version:", detectedHttpVersion);
     
     // Create a proxy URL to avoid CORS issues
     // Make a separate request to get the response time
@@ -134,14 +135,14 @@ export const checkUrl = async (url: string): Promise<{
     const responseHeaders = data.headers || {};
     console.log('Received raw headers:', responseHeaders);
 
-    // Try to determine HTTP version
-    let httpVersion = 'HTTP/1.1 (presumed)';
-    if (response.headers && typeof response.headers.get === 'function') {
-      httpVersion = detectHttpVersion(response.headers);
+    // Use the detected HTTP version from undici or try to determine from headers
+    let httpVersion = detectedHttpVersion;
+    if (detectedHttpVersion === 'HTTP/1.1 (presumed)' && response.headers && typeof response.headers.get === 'function') {
+      // Only fall back to header detection if undici couldn't determine the version
+      httpVersion = fallbackHttpVersionDetection(response.headers);
     }
     
     const allHeaders: Record<string, string> = {};
-
     allHeaders['response-time'] = responseTime.toString() || "Unknown";
     //allHeaders['total-response-time'] = totalTime.toString() || "Unknown";
     
