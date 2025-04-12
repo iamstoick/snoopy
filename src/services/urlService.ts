@@ -1,5 +1,6 @@
 import { HeaderResult } from '@/components/ResultCard';
 import { calculateCachingScore, generateSummary, getDetailedPerformanceTiming } from '@/utils/headerAnalyzer';
+import { request } from 'undici';
 
 // Generate a curl command for the URL with debug headers
 const generateCurlCommand = (url: string): string => {
@@ -36,8 +37,33 @@ const getIpAddressInfo = async (domainName: string): Promise<{ ip: string, locat
   }
 };
 
-// Detect HTTP protocol version from response headers
-const detectHttpVersion = (headers: Headers): string => {
+// Detect HTTP protocol version using undici
+const detectHttpVersion = async (url: string): Promise<string> => {
+  try {
+    const { httpVersion } = await request(url);
+    console.log("Undici detected HTTP Version:", httpVersion);
+    
+    if (httpVersion === '2.0') {
+      return 'HTTP/2';
+    } else if (httpVersion === '3.0') {
+      return 'HTTP/3 (QUIC)';
+    } else if (httpVersion === '1.1') {
+      return 'HTTP/1.1';
+    } else if (httpVersion === '1.0') {
+      return 'HTTP/1.0';
+    } else if (httpVersion) {
+      return `HTTP/${httpVersion}`;
+    }
+    
+    return 'HTTP/1.1 (presumed)';
+  } catch (error) {
+    console.error("Error detecting HTTP version with undici:", error);
+    return fallbackHttpVersionDetection();
+  }
+};
+
+// Fallback HTTP protocol detection from response headers
+const fallbackHttpVersionDetection = (): string => {
   // Check for HTTP/2 or HTTP/3 specific headers
   if (headers.get('x-firefox-http3') || headers.get('x-firefox-spdy') === 'h3') {
     return 'HTTP/3 (QUIC)';
@@ -77,6 +103,10 @@ export const checkUrl = async (url: string): Promise<{
   try {
     // Get IP address information
     const ipInfo = await getIpAddressInfo(url);
+    
+    // Get HTTP protocol version using undici
+    const httpVersion = await detectHttpVersion(url);
+    console.log("Detected HTTP Version:", httpVersion);
     
     // Create a proxy URL to avoid CORS issues
     // Make a separate request to get the response time
