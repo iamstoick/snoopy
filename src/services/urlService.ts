@@ -1,3 +1,4 @@
+
 import { HeaderResult } from '@/components/ResultCard';
 import { calculateCachingScore, generateSummary, getDetailedPerformanceTiming } from '@/utils/headerAnalyzer';
 
@@ -36,24 +37,40 @@ const getIpAddressInfo = async (domainName: string): Promise<{ ip: string, locat
   }
 };
 
-// Detect HTTP protocol version from response headers
-const detectHttpVersion = (headers: Headers): string => {
+// Detect HTTP protocol version using browser-compatible headers
+const detectHttpVersionFromHeaders = (headers: Headers | Record<string, string>): string => {
+  // Function to check if a header exists and get its value
+  const getHeader = (name: string): string | null => {
+    if (headers instanceof Headers) {
+      return headers.get(name);
+    } else if (typeof headers === 'object') {
+      return headers[name.toLowerCase()] || null;
+    }
+    return null;
+  };
+
   // Check for HTTP/2 or HTTP/3 specific headers
-  if (headers.get('x-firefox-http3') || headers.get('x-firefox-spdy') === 'h3') {
+  if (getHeader('x-firefox-http3') || getHeader('x-firefox-spdy') === 'h3') {
     return 'HTTP/3 (QUIC)';
   } 
   
-  if (headers.get('x-firefox-spdy') === 'h2' || headers.get('x-chrome-http2') === 'yes') {
+  if (getHeader('x-firefox-spdy') === 'h2' || getHeader('x-chrome-http2') === 'yes') {
     return 'HTTP/2';
   }
   
   // Check for Via header which might contain protocol information
-  const viaHeader = headers.get('via');
+  const viaHeader = getHeader('via');
   if (viaHeader) {
     if (viaHeader.includes('HTTP/2')) return 'HTTP/2';
     if (viaHeader.includes('HTTP/3')) return 'HTTP/3 (QUIC)';
     if (viaHeader.includes('HTTP/1.1')) return 'HTTP/1.1';
     if (viaHeader.includes('HTTP/1.0')) return 'HTTP/1.0';
+  }
+  
+  // Check for Alt-Svc header which might indicate HTTP/3
+  const altSvc = getHeader('alt-svc');
+  if (altSvc && (altSvc.includes('h3=') || altSvc.includes('h3-29='))) {
+    return 'HTTP/3 (QUIC) available';
   }
   
   // Default to HTTP/1.1 if we can't determine
@@ -78,17 +95,12 @@ export const checkUrl = async (url: string): Promise<{
     // Get IP address information
     const ipInfo = await getIpAddressInfo(url);
     
-    // Create a proxy URL to avoid CORS issues
     // Make a separate request to get the response time
-    // Example usage:
-    /*const totalTime = await getDetailedPerformanceTiming(url, (totalTime) => {
-      console.log('totalTime from callback:', totalTime);
-      return totalTime;
-    });
-    console.log('totalTime :', totalTime );*/
-
     const start = performance.now();
-    const response = await fetch(encodeURIComponent(url));
+    const response = await fetch(encodeURIComponent(url)).catch(err => {
+      console.warn("Direct fetch failed, continuing with proxy method:", err);
+      return null;
+    });
     const responseTimeRaw = performance.now() - start;
     const responseTime = parseFloat(responseTimeRaw.toFixed(2));
 
@@ -104,16 +116,13 @@ export const checkUrl = async (url: string): Promise<{
     const responseHeaders = data.headers || {};
     console.log('Received raw headers:', responseHeaders);
 
-    // Try to determine HTTP version
-    let httpVersion = 'HTTP/1.1 (presumed)';
-    if (response.headers && typeof response.headers.get === 'function') {
-      httpVersion = detectHttpVersion(response.headers);
-    }
+    // Determine HTTP version from headers
+    const httpVersion = detectHttpVersionFromHeaders(responseHeaders);
+    console.log("Detected HTTP Version:", httpVersion);
     
     const allHeaders: Record<string, string> = {};
 
     allHeaders['response-time'] = responseTime.toString() || "Unknown";
-    //allHeaders['total-response-time'] = totalTime.toString() || "Unknown";
     
     // Add basic headers that would be present
     allHeaders['content-type'] = data.headers['content-type'];
@@ -423,12 +432,12 @@ export const checkUrl = async (url: string): Promise<{
       httpVersion: httpVersion,
       ipAddress: ipInfo?.ip,
       ipLocation: ipInfo?.location,
-      securityHeaders: securityHeaders,
-      usefulHeaders: usefulHeaders,
-      fastlyDebug: fastlyDebugHeaders,
-      pantheonDebug: pantheonDebugHeaders,
-      cloudflareDebug: cloudflareDebugHeaders,
-      cloudfrontDebugHeaders: cloudfrontDebugHeaders,
+      securityHeaders: extractSecurityHeaders(allHeaders),
+      usefulHeaders: extractUsefulHeaders(allHeaders),
+      fastlyDebug: extractFastlyDebugHeaders(allHeaders),
+      pantheonDebug: extractPantheonDebugHeaders(allHeaders),
+      cloudflareDebug: extractCloudflareDebugHeaders(allHeaders),
+      cloudfrontDebugHeaders: extractCloudfrontDebugHeaders(allHeaders),
       performanceSuggestions: performanceSuggestions
     };
     
@@ -454,6 +463,83 @@ export const checkUrl = async (url: string): Promise<{
     console.error("Error fetching headers:", error);
     throw error;
   }
+};
+
+// Helper functions to extract specific types of headers
+const extractSecurityHeaders = (allHeaders: Record<string, string>): string => {
+  return Object.keys(allHeaders)
+    .filter(key => 
+      key.toLowerCase().includes('strict-transport-') || 
+      key.toLowerCase().includes('x-xss-') ||
+      key.toLowerCase().includes('content-security-') ||
+      key.toLowerCase().includes('x-frame-') || 
+      key.toLowerCase().includes('x-permitted-') ||
+      key.toLowerCase().includes('x-download-') ||
+      key.toLowerCase().includes('x-webkit-') ||
+      key.toLowerCase().includes('x-content') ||
+      key.toLowerCase().includes('x-dns-')
+    )
+    .map(key => `${key}: ${allHeaders[key]}`)
+    .join('\n');
+};
+
+const extractUsefulHeaders = (allHeaders: Record<string, string>): string => {
+  return Object.keys(allHeaders)
+    .filter(key => 
+      key.toLowerCase().includes('x-drupal-') || 
+      key.toLowerCase().includes('x-pantheon-styx') ||
+      key.toLowerCase().includes('x-styx-req') ||
+      key.toLowerCase().startsWith('content-') ||
+      key.toLowerCase().includes('version-') ||
+      key.toLowerCase().includes('via') ||
+      key.toLowerCase().includes('vary') ||
+      key.toLowerCase().includes('total-response') ||
+      key.toLowerCase().includes('x-robots-') ||
+      key.toLowerCase() === 'alt-svc' ||
+      key.toLowerCase() === 'referrer-policy' ||
+      key.toLowerCase() === 'set-cookie' 
+    )
+    .map(key => `${key}: ${allHeaders[key]}`)
+    .join('\n');
+};
+
+const extractFastlyDebugHeaders = (allHeaders: Record<string, string>): string => {
+  return Object.keys(allHeaders)
+    .filter(key => 
+      key.toLowerCase().includes('fastly-debug-') || 
+      key.toLowerCase() === 'surrogate-key' ||
+      key.toLowerCase().includes('x-fastly-cache') ||
+      key.toLowerCase().includes('x-fastly-pre-') ||
+      key.toLowerCase() === 'fastly-restarts'
+    )
+    .map(key => `${key}: ${allHeaders[key]}`)
+    .join('\n');
+};
+
+const extractPantheonDebugHeaders = (allHeaders: Record<string, string>): string => {
+  return Object.keys(allHeaders)
+    .filter(key => 
+      key.toLowerCase() === 'surrogate-key-raw' || 
+      key.toLowerCase().includes('policy-doc') || 
+      key.toLowerCase().includes('pcontext') ||
+      key.toLowerCase().includes('pantheon-')
+    )
+    .map(key => `${key}: ${allHeaders[key]}`)
+    .join('\n');
+};
+
+const extractCloudflareDebugHeaders = (allHeaders: Record<string, string>): string => {
+  return Object.keys(allHeaders)
+    .filter(key => key.toLowerCase().includes('cf-'))
+    .map(key => `${key}: ${allHeaders[key]}`)
+    .join('\n');
+};
+
+const extractCloudfrontDebugHeaders = (allHeaders: Record<string, string>): string => {
+  return Object.keys(allHeaders)
+    .filter(key => key.toLowerCase().includes('x-amz'))
+    .map(key => `${key}: ${allHeaders[key]}`)
+    .join('\n');
 };
 
 // Generate performance suggestions based on header analysis
