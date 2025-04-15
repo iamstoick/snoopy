@@ -87,15 +87,10 @@ export const checkUrl = async (url: string): Promise<{
     });
     console.log('totalTime :', totalTime );*/
 
-    const start = performance.now();
-    const response = await fetch(encodeURIComponent(url));
-    const responseTimeRaw = performance.now() - start;
-    const responseTime = parseFloat(responseTimeRaw.toFixed(2));
-
     // Make a proxy request to fetch headers
     const proxyUrl = 'https://2ce35250-6caf-4679-9f7c-5f3f9b29be3f-00-2wj5812hu9b5s.sisko.replit.dev/proxy?url=' + encodeURIComponent(url);
-    const response2 = await fetch(proxyUrl);
-    const data: HeaderResult = await response2.json();
+    const response = await fetch(proxyUrl);
+    const data: HeaderResult = await response.json();
     if (data.status != 200) {
       throw new Error('Failed to fetch headers');
     }
@@ -109,9 +104,11 @@ export const checkUrl = async (url: string): Promise<{
     if (response.headers && typeof response.headers.get === 'function') {
       httpVersion = detectHttpVersion(response.headers);
     }
+
+    const responseTime = data.responseTime || 0;
     
     const allHeaders: Record<string, string> = {};
-
+    
     allHeaders['response-time'] = responseTime.toString() || "Unknown";
     //allHeaders['total-response-time'] = totalTime.toString() || "Unknown";
     
@@ -417,6 +414,7 @@ export const checkUrl = async (url: string): Promise<{
     const result: HeaderResult = {
       url: url,
       status: data.status,
+      responseTime: responseTime,
       headers: allHeaders,
       humanReadableSummary: generateSummary(url, server, cachingScore, responseTime, cacheStatus),
       cachingScore: cachingScore,

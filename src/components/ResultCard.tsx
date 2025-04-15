@@ -10,6 +10,7 @@ import DebugHeaders from './results/DebugHeaders';
 
 export interface HeaderResult {
   headers: Record<string, string>;
+  responseTime: string;
   url: string;
   status: number;
   humanReadableSummary: string;
