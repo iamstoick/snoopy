@@ -5,7 +5,7 @@ However, this tool will still work on sites not hosted in Pantheon.
 
 Give it a try!
 
-** How to use this tool?**
+**How to use this tool?**
 
 Follow these steps:
 
