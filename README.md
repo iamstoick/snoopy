@@ -1,6 +1,9 @@
-# HTTP Headers Checker for Pantheon Sites
+# What is Snoopy?
 
-CacheChecker is a web browser tool that inspect HTTP response headers. This tool is designed specifically for sites on [Pantheon](https://pantheon.io) webops platform.
+Snoopy is a web browser tool that inspect HTTP response headers. This tool is designed specifically for sites on [Pantheon](https://pantheon.io) webops platform.
+However, this tool will still work on sites not hosted in Pantheon. 
+
+Give it a try!
 
 ** How to use this tool?**
 
