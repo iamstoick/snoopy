@@ -11,7 +11,7 @@ Follow these steps:
 
 ```sh
 # Step 1: Clone the repository using the project's Git URL.
-git clone https://github.com/iamstoick/http-headers-checker.git 
+git clone https://github.com/iamstoick/snoopy.git 
 
 # Step 2: Navigate to the project directory.
 cd http-headers-checker
