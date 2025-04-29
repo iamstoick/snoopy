@@ -6,29 +6,46 @@ const generateCurlCommand = (url: string): string => {
   return `curl -I -H "Fastly-Debug: 1" -H "Pantheon-Debug: 1" "${url}"`;
 };
 
-// Get IP address information
-const getIpAddressInfo = async (domainName: string): Promise<{ ip: string, location: string } | null> => {
+const getIpAddressInfo = async (domainName: string): Promise<{ ip: string, org: string, location: string } | null> => {
   try {
-    // Extract domain from URL if needed
     let hostname = domainName;
     if (hostname.startsWith('http://') || hostname.startsWith('https://')) {
       hostname = new URL(hostname).hostname;
     }
-    
-    // Use public API to get IP address and geolocation
-    const response = await fetch(`https://ipapi.co/${hostname}/json/`);
-    const data = await response.json();
-    
-    if (data.error) {
-      console.error('IP lookup error:', data.error);
+
+    console.log(`Resolving IP for: ${hostname}`);
+
+    // Resolve domain to IP using Google's DNS API
+    const ipResponse = await fetch(`https://dns.google/resolve?name=${hostname}&type=A`);
+    const ipData = await ipResponse.json();
+    const ip = ipData.Answer?.[0]?.data;
+
+    if (!ip) {
+      console.error('Could not resolve IP from domain.');
       return null;
     }
-    
+
+    console.log(`Resolved IP: ${ip}`);
+
+    // Use IP to get geo info
+    const response = await fetch(`https://ipapi.co/${ip}/json/`);
+    if (!response.ok) {
+      console.error(`Geo lookup failed: ${response.status}`);
+      return null;
+    }
+    const data = await response.json();
+
+    if (data.error) {
+      console.error('Geo lookup error:', data.reason || data.message);
+      return null;
+    }
+
+    console.log('IP Info:', data);
+
     return {
       ip: data.ip || 'Unknown',
-      location: data.city && data.country_name ? 
-        `${data.city}, ${data.country_name}` : 
-        (data.country_name || 'Unknown location')
+      org: data.org || 'Unknown',
+      location: data.city && data.country_name ? `${data.city}, ${data.country_name}` : (data.country_name || 'Unknown location')
     };
   } catch (error) {
     console.error('Error fetching IP info:', error);
@@ -43,7 +60,7 @@ const detectHttpVersion = (headers: Headers): string => {
     return 'HTTP/3 (QUIC)';
   } 
   
-  if (headers.get('x-firefox-spdy') === 'h2' || headers.get('x-chrome-http2') === 'yes') {
+  if (headers.get('x-firefox-spdy') === 'h2' || headers.get('x-chrome-http2') === 'yes')  {
     return 'HTTP/2';
   }
   
@@ -77,18 +94,9 @@ export const checkUrl = async (url: string): Promise<{
   try {
     // Get IP address information
     const ipInfo = await getIpAddressInfo(url);
-    
-    // Create a proxy URL to avoid CORS issues
-    // Make a separate request to get the response time
-    // Example usage:
-    /*const totalTime = await getDetailedPerformanceTiming(url, (totalTime) => {
-      console.log('totalTime from callback:', totalTime);
-      return totalTime;
-    });
-    console.log('totalTime :', totalTime );*/
 
     // Make a proxy request to fetch headers
-    const proxyUrl = 'https://2ce35250-6caf-4679-9f7c-5f3f9b29be3f-00-2wj5812hu9b5s.sisko.replit.dev/proxy?url=' + encodeURIComponent(url);
+    const proxyUrl = 'https://snoopy-proxy.geraldvillorente.com//proxy?url=' + encodeURIComponent(url);
     const response = await fetch(proxyUrl);
     const data: HeaderResult = await response.json();
     if (data.status != 200) {
@@ -105,7 +113,7 @@ export const checkUrl = async (url: string): Promise<{
       httpVersion = detectHttpVersion(response.headers);
     }
 
-    const responseTime = data.responseTime || 0;
+    const responseTime = data.responseTime || '0';
     
     const allHeaders: Record<string, string> = {};
     
@@ -421,6 +429,7 @@ export const checkUrl = async (url: string): Promise<{
       httpVersion: httpVersion,
       ipAddress: ipInfo?.ip,
       ipLocation: ipInfo?.location,
+      ipOrg: ipInfo?.org,
       securityHeaders: securityHeaders,
       usefulHeaders: usefulHeaders,
       fastlyDebug: fastlyDebugHeaders,
@@ -461,7 +470,7 @@ const generatePerformanceSuggestions = (
   lastModified: string,
   serverType: string,
   cachingScore: number,
-  responseTime: number,
+  responseTime: string,
   httpVersion?: string
 ): string[] => {
   const suggestions: string[] = [];
