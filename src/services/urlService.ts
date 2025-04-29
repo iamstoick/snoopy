@@ -96,7 +96,7 @@ export const checkUrl = async (url: string): Promise<{
     const ipInfo = await getIpAddressInfo(url);
 
     // Make a proxy request to fetch headers
-    const proxyUrl = 'https://snoopy-proxy.geraldvillorente.com//proxy?url=' + encodeURIComponent(url);
+    const proxyUrl = 'https://snoopy-proxy.geraldvillorente.com/proxy?url=' + encodeURIComponent(url);
     const response = await fetch(proxyUrl);
     const data: HeaderResult = await response.json();
     if (data.status != 200) {
