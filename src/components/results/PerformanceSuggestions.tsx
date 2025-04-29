@@ -7,13 +7,15 @@ interface PerformanceSuggestionsProps {
   httpVersion?: string;
   ipAddress?: string;
   ipLocation?: string;
+  ipOrg?: string;
 }
 
 const PerformanceSuggestions: React.FC<PerformanceSuggestionsProps> = ({ 
   suggestions,
   httpVersion,
   ipAddress,
-  ipLocation
+  ipLocation,
+  ipOrg
 }) => {
   return (
     <div className="space-y-4 my-6">
@@ -33,7 +35,7 @@ const PerformanceSuggestions: React.FC<PerformanceSuggestionsProps> = ({
             {ipAddress && (
               <div className="p-3 bg-white rounded shadow-sm">
                 <p className="text-sm font-medium text-gray-500">IP Address</p>
-                <p className="text-base font-medium text-gray-900">{ipAddress}</p>
+                <p className="text-base font-medium text-gray-900">{ipAddress} - {ipOrg}</p>
                 {ipLocation && <p className="text-sm text-gray-600 mt-1">{ipLocation}</p>}
               </div>
             )}
