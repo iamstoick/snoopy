@@ -18,6 +18,7 @@ export interface HeaderResult {
   httpVersion?: string;
   ipAddress?: string;
   ipLocation?: string;
+  ipOrg?: string;
   securityHeaders?: string;
   usefulHeaders?: string;
   fastlyDebug?: string;
@@ -71,6 +72,7 @@ const ResultCard: React.FC<ResultCardProps> = ({ result }) => {
               httpVersion={result.httpVersion}
               ipAddress={result.ipAddress}
               ipLocation={result.ipLocation}
+              ipOrg={result.ipOrg}
             />
 
             <DebugHeaders
